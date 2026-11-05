@@ -1,0 +1,12 @@
+.venv
+.venv.nosync
+data
+data.nosync
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+build/
+.env
+.DS_Store

@@ -1,0 +1,9 @@
+category,label,segment
+general_dealers,General dealers,defensive
+food_beverages_tobacco,"Food, beverages and tobacco in specialised stores",defensive
+pharma_cosmetics,"Pharmaceutical and medical goods, cosmetics and toiletries",defensive
+textiles_clothing_footwear,"Textiles, clothing, footwear and leather goods",discretionary
+household_furniture_appliances,"Household furniture, appliances and equipment",discretionary
+hardware_paint_glass,"Hardware, paint and glass",discretionary
+other_retailers,All other retailers,mixed
+total,All retailers,total
