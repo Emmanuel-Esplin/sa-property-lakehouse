@@ -18,7 +18,8 @@ measure has changed.
 
 Stats SA revises history and rebases constant prices. Earlier releases used 2012 and 2015 bases, and
 recent ones use 2019. A new release therefore isn't just an old one plus a month, so each distinct
-file is stored by hash with a provenance manifest. Silver is built from one release at a time, which
+file is stored under its hash, with its original name and origin recorded alongside. A renamed copy
+of a file is the same object. Silver is built from one release at a time, which
 means price bases are never spliced together.
 
 ## History starts in January 2008
@@ -62,6 +63,18 @@ patterns. The index uses up to the five latest complete years outside that perio
 Defensive and discretionary aren't Stats SA labels. General dealers, specialised food and pharmacy
 are treated as defensive. Clothing, furniture and hardware are discretionary. Change the mapping in
 `transform/seeds/retail_categories.csv`. An unmapped category fails the build.
+
+## Lambda only moves files
+
+Lambda copies source files into bronze using the standard library and the boto3 in its runtime.
+Parsing needs pandas, which would add a heavy package, and Phase 3 replaces it with Spark anyway. A
+test proves the handlers import no heavy dependencies. Bronze writes use `If-None-Match`, so a repeat
+delivery of the same file changes nothing.
+
+## One bucket, split by prefix
+
+Landing, bronze, silver and gold share a bucket. IAM still limits each Lambda to its own prefixes,
+and one bucket keeps the S3 trigger and the teardown simple.
 
 ## Local first, DuckDB pinned below 2
 

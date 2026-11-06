@@ -32,13 +32,15 @@ def write_bronze(
     sha256 = hashlib.sha256(content).hexdigest()
     folder = root / "bronze" / source / dataset
     folder.mkdir(parents=True, exist_ok=True)
-    path = folder / f"{sha256[:12]}_{name}"
+    # The hash alone names the file, so a renamed copy of a file is still the same object.
+    path = folder / f"{sha256[:12]}{Path(name).suffix}"
     if path.exists():
         return BronzeObject(path, sha256, is_new=False)
 
     path.write_bytes(content)
     entry = {
         "file": path.name,
+        "original_name": name,
         "sha256": sha256,
         "bytes": len(content),
         "origin": origin,

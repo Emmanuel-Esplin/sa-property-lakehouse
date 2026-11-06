@@ -1,40 +1,16 @@
 """Headline CPI (year-on-year %) from the South African Reserve Bank's public web API."""
 
 import json
-import time
-import urllib.error
-import urllib.request
 from datetime import date
 from pathlib import Path
 
 import pandas as pd
 
 from ingestion.common.bronze import data_dir, write_bronze
+from ingestion.sarb.client import API, CPI_SERIES, START_DATE, fetch_series
 
-API = "https://custom.resbank.co.za/SarbWebApi/WebIndicators/Shared/GetTimeseriesObservations"
-CPI_SERIES = "CPI1000F"
-START_DATE = "2000-01-01"
-USER_AGENT = "sa-property-lakehouse/0.1"
 # SARB describes the series this way. If the wording changes, the measure may have changed too.
 EXPECTED_MEASURE = "12-Term % change"
-
-
-def fetch_series(code: str, start: str, end: str, attempts: int = 3) -> bytes:
-    url = f"{API}/{code}/{start}/{end}"
-    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-    for attempt in range(1, attempts + 1):
-        try:
-            with urllib.request.urlopen(request, timeout=60) as response:
-                content_type = response.headers.get("Content-Type", "")
-                body = response.read()
-            if "json" not in content_type:
-                raise ValueError(f"Expected JSON from {url}, got {content_type!r}")
-            return body
-        except urllib.error.URLError:
-            if attempt == attempts:
-                raise
-            time.sleep(2**attempt)
-    raise AssertionError("unreachable")
 
 
 def parse_cpi(raw: bytes) -> pd.DataFrame:

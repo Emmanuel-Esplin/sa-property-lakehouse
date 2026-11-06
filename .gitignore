@@ -10,3 +10,11 @@ __pycache__/
 build/
 .env
 .DS_Store
+# Terraform: provider binaries, state and tfvars stay local (.nosync keeps them out of iCloud)
+*.nosync/
+*.nosync
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+.terraform/
