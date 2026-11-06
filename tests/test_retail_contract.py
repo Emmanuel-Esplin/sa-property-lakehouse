@@ -71,13 +71,25 @@ def test_landing_is_idempotent(tmp_path):
     assert first.is_new and not second.is_new and first.path == second.path
 
 
+def test_landing_a_renamed_copy_stores_nothing_new(tmp_path):
+    folder = landing_dir(tmp_path)
+    folder.mkdir(parents=True)
+    (folder / "first.xlsx").write_bytes(b"PK\x03\x04 data")
+    first = land_release(tmp_path)
+    (folder / "first.xlsx").rename(folder / "second.xlsx")
+    second = land_release(tmp_path)
+    assert not second.is_new and first.path == second.path
+    manifest = tmp_path / "bronze/stats_sa/retail_trade/manifest.jsonl"
+    assert len(manifest.read_text().splitlines()) == 1
+
+
 def test_landing_ignores_other_formats_and_finds_nested_workbook(tmp_path):
     nested = landing_dir(tmp_path) / "EXCEL"
     nested.mkdir(parents=True)
     (nested / "retail.xlsx").write_bytes(b"PK\x03\x04 data")
     (landing_dir(tmp_path) / "release.pdf").write_bytes(b"%PDF")
     (nested / "legacy.xls").write_bytes(b"old")
-    assert land_release(tmp_path).path.name.endswith("retail.xlsx")
+    assert land_release(tmp_path).path.read_bytes() == b"PK\x03\x04 data"
 
 
 def test_landing_refuses_two_workbooks(tmp_path):

@@ -4,8 +4,10 @@ A data platform that answers the questions a South African property owner asks a
 and its market. It has two domains: **tenant trading**, built from national retail sales, and
 **REIT market performance**, which is planned.
 
-> **Status: Phase 1 complete.** Tenant trading runs locally on real data through the August 2026
-> release. Cloud, Spark, dbt and the REIT module are planned, not built.
+> **Status: Phase 1 complete, Phase 2 verified on AWS.** Tenant trading runs locally on real data
+> through the August 2026 release. The AWS foundation was deployed to a dev account and tested with
+> real data. That account is temporary, so the environment may be torn down. Marts still build
+> locally: Spark, dbt and the REIT module are planned.
 
 ## What the data shows
 
@@ -91,12 +93,25 @@ Retail data takes one manual step, because Stats SA's site blocks scripted clien
 
 Marts are written to `data/gold/`.
 
+## AWS
+
+`make tf-check` validates the Terraform and needs no AWS account. Deploying needs AWS credentials
+and a `terraform.tfvars` copied from the example in `infra/envs/dev/`:
+
+```bash
+make tf-plan      # review what would be created
+make tf-apply     # creates billable resources
+make tf-destroy   # removes everything, including the data in the bucket
+```
+
+The cost design and guardrails are in [docs/aws-costs.md](docs/aws-costs.md).
+
 ## Roadmap
 
 | Phase | Scope | Status |
 |---|---|---|
 | 1 | Local ingestion and DuckDB marts for tenant trading | Done |
-| 2 | Terraform: S3, IAM, Glue; ingestion on Lambda | Planned |
+| 2 | Terraform: S3, IAM, Glue; ingestion on Lambda | Done, verified on AWS |
 | 3 | PySpark bronze to silver to gold with Iceberg or Delta | Planned |
 | 4 | dbt marts for both modules | Planned |
 | 5 | REIT module: market prices and SARB rates | Planned |
