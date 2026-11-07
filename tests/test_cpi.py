@@ -1,3 +1,5 @@
+"""The SARB CPI parser: what it accepts, and each rule it enforces."""
+
 import json
 
 import pandas as pd

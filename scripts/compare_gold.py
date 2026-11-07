@@ -17,6 +17,7 @@ KEYS = {
     "mart_segment_scorecard": ["segment"],
     "mart_seasonality_monthly": ["category", "month_of_year"],
     "mart_seasonality_summary": ["category"],
+    "mart_rates_monthly": ["month"],
 }
 TOLERANCE = 1e-6
 
@@ -35,6 +36,7 @@ def parquet_files(folder: Path) -> list[str]:
 
 
 def same(left, right) -> bool:
+    """Equal, allowing for float rounding. Engines add up floats in different orders."""
     if left is None or right is None:
         return left is None and right is None
     if isinstance(left, bool) or isinstance(right, bool):
@@ -45,12 +47,15 @@ def same(left, right) -> bool:
 
 
 def compare_mart(connection, name: str, keys: list[str], folder: Path) -> list[str]:
+    """Every difference between the exported mart and the local one, as readable lines."""
     order = ", ".join(keys)
-    expected = connection.execute(f"select * from warehouse.{name} order by {order}")
-    columns = sorted(column[0] for column in expected.description)
+    # Both sides are read with the same sorted column list, so column order can't matter.
+    header = connection.execute(f"select * from warehouse.{name} limit 0").description
+    columns = sorted(column[0] for column in header)
     select = ", ".join(columns)
-    expected_rows = connection.execute(f"select {select} from warehouse.{name} order by {order}")
-    expected_rows = expected_rows.fetchall()
+    expected_rows = connection.execute(
+        f"select {select} from warehouse.{name} order by {order}"
+    ).fetchall()
     files = parquet_files(folder / name)
     actual = connection.execute("select * from read_parquet(?) limit 0", [files]).description
     if sorted(column[0] for column in actual) != columns:
@@ -69,6 +74,7 @@ def compare_mart(connection, name: str, keys: list[str], folder: Path) -> list[s
 
 
 def main(folder: Path) -> int:
+    """Compare every mart, print a line each, and return 1 if anything differs."""
     warehouse = data_dir() / "gold" / "warehouse.duckdb"
     failures = compared = 0
     with duckdb.connect() as connection:

@@ -9,10 +9,12 @@ DATABASE = "sa_property_lakehouse"
 
 
 def job_argument(name: str) -> str:
+    """Read a `--NAME value` argument, the way Glue passes job parameters."""
     return sys.argv[sys.argv.index(f"--{name}") + 1]
 
 
 def table(name: str) -> str:
+    """The full Iceberg name for a table in this project's Glue database."""
     return f"{CATALOG}.{DATABASE}.{name}"
 
 

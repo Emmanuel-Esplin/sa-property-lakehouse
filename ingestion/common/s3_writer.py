@@ -9,6 +9,8 @@ from pathlib import PurePosixPath
 
 @dataclass(frozen=True)
 class BronzeObject:
+    """Where an object was stored, and whether this call stored it or found it already there."""
+
     key: str
     sha256: str
     is_new: bool

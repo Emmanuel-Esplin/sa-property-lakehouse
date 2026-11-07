@@ -29,7 +29,7 @@ run "dev_environment_fits_together" {
   }
 
   assert {
-    condition     = aws_cloudwatch_log_group.cpi.retention_in_days == 14 && aws_cloudwatch_log_group.retail.retention_in_days == 14
+    condition     = aws_cloudwatch_log_group.sarb.retention_in_days == 14 && aws_cloudwatch_log_group.retail.retention_in_days == 14
     error_message = "Logs must expire so they do not accumulate cost."
   }
 

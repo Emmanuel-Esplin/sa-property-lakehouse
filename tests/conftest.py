@@ -39,6 +39,23 @@ def cpi() -> pd.DataFrame:
     return pd.DataFrame({"month": months.date, "cpi_yoy_pct": CPI_YOY})
 
 
+@pytest.fixture
+def rates() -> pd.DataFrame:
+    """Three days a month. Repo rises 0.25 on 15 June 2024, prime stays 3.5 points above it,
+    and the bond yields 9.0, 9.3 and 9.6 in every month, so each monthly average is 9.3."""
+    rows = []
+    for month in pd.date_range("2022-01-01", "2025-12-01", freq="MS"):
+        for day, bond in ((1, 9.0), (15, 9.3), (28, 9.6)):
+            rate_date = month.replace(day=day)
+            repo = 7.25 if rate_date >= pd.Timestamp(2024, 6, 15) else 7.0
+            rows += [
+                (rate_date.date(), "repo_rate", repo),
+                (rate_date.date(), "prime_rate", repo + 3.5),
+                (rate_date.date(), "govt_bond_10y_plus", bond),
+            ]
+    return pd.DataFrame(rows, columns=["rate_date", "series", "value_pct"])
+
+
 # Labels are copied from the real P6242.1 workbook; the values are invented.
 RELEASE_CATEGORIES = {
     "General dealers": 1000,

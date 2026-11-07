@@ -11,11 +11,14 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 def data_dir() -> Path:
+    """The lake's root folder. Tests point LAKEHOUSE_DATA_DIR at a temporary folder."""
     return Path(os.environ.get("LAKEHOUSE_DATA_DIR", REPO_ROOT / "data"))
 
 
 @dataclass(frozen=True)
 class BronzeObject:
+    """Where a file was stored, and whether this call stored it or found it already there."""
+
     path: Path
     sha256: str
     is_new: bool

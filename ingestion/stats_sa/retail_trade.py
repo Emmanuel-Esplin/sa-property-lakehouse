@@ -45,6 +45,7 @@ class ReleaseFormatNotMapped(RuntimeError):
 
 
 def landing_dir(root: Path) -> Path:
+    """Where a person saves the workbook downloaded from Stats SA."""
     return root / "landing" / "stats_sa" / "retail_trade"
 
 
@@ -186,6 +187,7 @@ def _check_total_reconciles(unadjusted: pd.DataFrame) -> None:
 
 
 def write_silver(root: Path, frame: pd.DataFrame) -> Path:
+    """Validate, then write. Nothing reaches silver without passing the contract."""
     silver = root / "silver"
     silver.mkdir(parents=True, exist_ok=True)
     path = silver / "retail_trade.parquet"
@@ -194,6 +196,7 @@ def write_silver(root: Path, frame: pd.DataFrame) -> Path:
 
 
 def run(root: Path) -> Path | None:
+    """Land the workbook in bronze and write silver. Returns None if nothing has landed."""
     stored = land_release(root)
     if stored is None:
         print(

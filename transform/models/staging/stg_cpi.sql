@@ -1,3 +1,4 @@
+-- Headline CPI from silver: Parquet locally, the Iceberg table on Athena.
 {% if target.type == 'duckdb' %}
 select month::date as month, cpi_yoy_pct
 from read_parquet('{{ var("silver_dir") }}/cpi.parquet')

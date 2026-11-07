@@ -22,6 +22,13 @@ CPI_SCHEMA = StructType(
         StructField("cpi_yoy_pct", DoubleType(), False),
     ]
 )
+RATES_SCHEMA = StructType(
+    [
+        StructField("rate_date", DateType(), False),
+        StructField("series", StringType(), False),
+        StructField("value_pct", DoubleType(), False),
+    ]
+)
 
 
 def to_spark(spark: SparkSession, frame: pd.DataFrame, schema: StructType) -> DataFrame:
