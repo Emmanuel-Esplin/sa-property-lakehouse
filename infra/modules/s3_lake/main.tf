@@ -66,6 +66,18 @@ resource "aws_s3_bucket_lifecycle_configuration" "lake" {
     }
   }
 
+  # Athena writes a result file for every query, and nothing reads them later.
+  rule {
+    id     = "expire-athena-results"
+    status = "Enabled"
+    filter {
+      prefix = "athena-results/"
+    }
+    expiration {
+      days = 7
+    }
+  }
+
   # Landing is only a drop zone: anything valid has already been copied to bronze.
   rule {
     id     = "expire-landing"

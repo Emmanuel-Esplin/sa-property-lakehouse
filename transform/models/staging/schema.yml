@@ -1,0 +1,43 @@
+version: 2
+
+models:
+  - name: stg_retail
+    description: Retail trade sales from silver, one row per month and series.
+    data_tests:
+      - unique_combination:
+          columns: [month, category, price_basis, adjustment]
+      - no_month_gaps:
+          partition_by: [category, price_basis, adjustment]
+    columns:
+      - name: month
+        data_tests: [not_null]
+      - name: category
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('retail_categories')
+                field: category
+      - name: price_basis
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [current, constant]
+      - name: adjustment
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [unadjusted, seasonally_adjusted]
+      - name: value_rmillion
+        data_tests: [not_null]
+
+  - name: stg_cpi
+    description: Headline CPI year-on-year %, from SARB.
+    data_tests:
+      - no_month_gaps:
+          partition_by: []
+    columns:
+      - name: month
+        data_tests: [not_null, unique]
+      - name: cpi_yoy_pct
+        data_tests: [not_null]

@@ -21,7 +21,7 @@ There is no VPC, NAT gateway or always-on compute, so almost nothing bills while
 | Phase | Service | Approximate price | Note |
 |---|---|---|---|
 | 3 | Glue Spark jobs | $0.44 per DPU-hour | Measured: 147 and 227 DPU-seconds, about 5 cents for both jobs. They run on demand |
-| 4 | Athena through dbt | $5 per TB scanned | A few MB of Parquet makes queries close to free |
+| 4 | Athena through dbt | $5 per TB scanned, at least 10 MB a query | A full build scans a few MB. Each query costs about $0.00005, and the workgroup stops any query at 1 GB |
 
 ## Services to avoid here
 
@@ -58,6 +58,9 @@ the local marts and the published figures.
 
 Each job has 2 workers, no retries, one run at a time and a 10-minute timeout, because Glue's default
 timeout is 48 hours. A Terraform test enforces these limits.
+
+Phase 4 ran the same day. dbt built and tested 35 models and tests on Athena, and the marts matched
+the local marts and the published figures. The Spark gold job was removed, because dbt replaced it.
 
 ## Credit rules
 

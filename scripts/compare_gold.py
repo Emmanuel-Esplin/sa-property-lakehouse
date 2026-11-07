@@ -1,4 +1,4 @@
-"""Compare exported Spark marts with the DuckDB marts, row by row.
+"""Compare exported marts, for example from Athena, with the local DuckDB marts, row by row.
 
 Usage: compare_gold.py <folder holding one folder of Parquet files per mart>
 """
@@ -21,6 +21,19 @@ KEYS = {
 TOLERANCE = 1e-6
 
 
+def parquet_files(folder: Path) -> list[str]:
+    """Data files in an export folder. Athena names them without an extension, and Spark adds
+    marker files such as _SUCCESS, so neither a name pattern nor "every file" works."""
+    files = sorted(
+        str(path)
+        for path in folder.iterdir()
+        if path.is_file() and not path.name.startswith(("_", "."))
+    )
+    if not files:
+        raise FileNotFoundError(f"No exported data files in {folder}")
+    return files
+
+
 def same(left, right) -> bool:
     if left is None or right is None:
         return left is None and right is None
@@ -38,12 +51,12 @@ def compare_mart(connection, name: str, keys: list[str], folder: Path) -> list[s
     select = ", ".join(columns)
     expected_rows = connection.execute(f"select {select} from warehouse.{name} order by {order}")
     expected_rows = expected_rows.fetchall()
-    path = str(folder / name / "*.parquet")
-    actual = connection.execute(f"select * from read_parquet('{path}') limit 0").description
+    files = parquet_files(folder / name)
+    actual = connection.execute("select * from read_parquet(?) limit 0", [files]).description
     if sorted(column[0] for column in actual) != columns:
         return [f"{name}: columns differ"]
     actual_rows = connection.execute(
-        f"select {select} from read_parquet('{path}') order by {order}"
+        f"select {select} from read_parquet(?) order by {order}", [files]
     ).fetchall()
     if len(actual_rows) != len(expected_rows):
         return [f"{name}: {len(actual_rows)} rows, expected {len(expected_rows)}"]

@@ -1,16 +1,15 @@
 -- The same 12-month windows, with categories added together into each segment.
-create or replace temporary view mart_segment_scorecard as
 with latest as (
-    select max(month) as latest_month from int_retail_monthly
+    select max(month) as latest_month from {{ ref('int_retail_monthly') }}
 ),
 windowed as (
     select
         c.segment,
         m.nominal_rmillion,
         m.real_rmillion,
-        cast(months_between(l.latest_month, m.month) as int) as months_ago
-    from int_retail_monthly as m
-    inner join dim_retail_category as c on c.category = m.category
+        {{ dbt.datediff('m.month', 'l.latest_month', 'month') }} as months_ago
+    from {{ ref('int_retail_monthly') }} as m
+    inner join {{ ref('retail_categories') }} as c on c.category = m.category
     cross join latest as l
     where c.segment <> 'total'
 ),

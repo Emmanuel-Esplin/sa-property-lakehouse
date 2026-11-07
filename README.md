@@ -4,10 +4,10 @@ A data platform that answers the questions a South African property owner asks a
 and its market. It has two domains: **tenant trading**, built from national retail sales, and
 **REIT market performance**, which is planned.
 
-> **Status: Phases 1 to 3 complete.** Tenant trading runs on real data through the August 2026
-> release, locally on DuckDB and on AWS with Spark and Iceberg. Both give identical results. The AWS
-> account is temporary, so the cloud environment may be torn down. dbt and the REIT module are
-> planned.
+> **Status: Phases 1 to 4 complete.** Tenant trading runs on real data through the August 2026
+> release. One dbt project builds the marts locally on DuckDB and on AWS on Athena, from silver
+> tables that Spark writes as Iceberg. Both give identical results. The AWS account is temporary,
+> so the cloud environment may be torn down. The REIT module is planned.
 
 ## What the data shows
 
@@ -40,8 +40,8 @@ general dealers and clothing, could flip with revisions.
 
 **Checked against the source.** All 101 growth rates compared with Stats SA's August 2026 release
 match at one decimal place: every category for six months at both price bases, plus five annual
-totals. The marts built on AWS pass the same check, and match the local marts on all 1,907 rows. Run
-`make reconcile`, `make spark-parity` or `make cloud-check` to repeat this.
+totals. The marts built on Athena pass the same check, and match the local marts on all 1,907
+rows. Run `make reconcile` or `make cloud-check` to repeat this.
 
 ## Questions
 
@@ -67,19 +67,24 @@ flowchart LR
     L --> B[(Bronze: every vintage, hashed)]
     R[SARB API: CPI] -->|scripted| B
     B -->|validated contract| SV[(Silver: tidy Parquet)]
-    SV -->|DuckDB SQL + checks| G[(Gold: marts)]
+    SV -->|dbt models + tests| G[(Gold: marts)]
 ```
 
-On AWS, the same flow runs with Lambda moving files into bronze on S3, and Spark on Glue building
-silver and gold as Iceberg tables registered in the Glue catalog.
+| Step | Locally | On AWS |
+|---|---|---|
+| Into bronze | Python, from the landing folder | Lambda, on upload or weekly schedule |
+| Bronze to silver | Python parser and contract | The same code, in Spark on Glue, writing Iceberg |
+| Silver to gold | dbt on DuckDB | The same dbt models on Athena, writing Iceberg |
+
+Both runs use one parser and one set of dbt models, so they can't drift apart.
 
 The main decisions are explained in [docs/design-decisions.md](docs/design-decisions.md), and every
 column is described in [docs/data-dictionary.md](docs/data-dictionary.md).
 
 ## Run it
 
-Requires Python 3.12 or later, and Java 8, 11 or 17 for the Spark tests. `make install` uses `/opt/anaconda3/bin/python` by default; override
-it with `BOOTSTRAP_PYTHON=python3.12`.
+Requires Python 3.12 or later, and Java 8, 11 or 17 for the Spark tests. `make install` uses
+`/opt/anaconda3/bin/python` by default; override it with `BOOTSTRAP_PYTHON=python3.12`.
 
 ```bash
 make install
@@ -93,9 +98,9 @@ Retail data takes one manual step, because Stats SA's site blocks scripted clien
    data for release P6242.1, Retail trade sales.
 2. Put the Excel workbook (`.xlsx`) anywhere under `data/landing/stats_sa/retail_trade/`. Keep only
    the latest one there: other formats are ignored, and two workbooks stop the run.
-3. Run `make retail`, then `make gold`.
+3. Run `make retail`, then `make gold`, which builds and tests the dbt models.
 
-Marts are written to `data/gold/`.
+Marts are written to `data/gold/warehouse.duckdb`.
 
 ## AWS
 
@@ -105,8 +110,9 @@ and a `terraform.tfvars` copied from the example in `infra/envs/dev/`:
 ```bash
 make tf-plan      # review what would be created
 make tf-apply     # creates billable resources
-make glue-run     # runs both Spark jobs, which costs a few cents
-make cloud-check  # compares the AWS marts with local marts and published figures
+make glue-run     # Spark on Glue: bronze to silver, a few cents
+make dbt-athena   # dbt on Athena: silver to gold, under a cent
+make cloud-check  # compares the Athena marts with local marts and published figures
 make tf-destroy   # removes everything, including the data in the bucket
 ```
 
@@ -118,9 +124,9 @@ The cost design and guardrails are in [docs/aws-costs.md](docs/aws-costs.md).
 |---|---|---|
 | 1 | Local ingestion and DuckDB marts for tenant trading | Done |
 | 2 | Terraform: S3, IAM, Glue; ingestion on Lambda | Done, verified on AWS |
-| 3 | PySpark on Glue: bronze to silver to gold with Iceberg | Done, verified on AWS |
-| 4 | dbt marts for both modules | Planned |
-| 5 | REIT module: market prices and SARB rates | Planned |
+| 3 | PySpark on Glue: bronze to silver with Iceberg | Done, verified on AWS |
+| 4 | dbt marts on DuckDB and Athena, with data tests | Done for tenant trading |
+| 5 | REIT module: market prices, SARB rates and their dbt marts | Planned |
 | 6 | Orchestration and Terraform plan in CI | Planned |
 | 7 | Dashboard and written findings | Planned |
 

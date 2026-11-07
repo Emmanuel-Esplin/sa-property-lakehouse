@@ -7,10 +7,12 @@ Usage: reconcile_august_2026.py [folder of exported marts, to check instead of t
 """
 
 import sys
+from pathlib import Path
 
 import duckdb
 
 from ingestion.common.bronze import data_dir
+from scripts.compare_gold import parquet_files
 
 MONTHS = ["2026-03-01", "2026-04-01", "2026-05-01", "2026-06-01", "2026-07-01", "2026-08-01"]
 TABLE_5_REAL = {
@@ -39,10 +41,9 @@ TABLE_2_ANNUAL_REAL = {2021: 6.2, 2022: 1.3, 2023: -1.5, 2024: 2.5, 2025: 3.7}
 def _connect() -> duckdb.DuckDBPyConnection:
     if len(sys.argv) > 1:
         connection = duckdb.connect()
-        path = f"{sys.argv[1]}/mart_tenant_growth/*.parquet"
-        connection.execute(
-            f"create view mart_tenant_growth as select * from read_parquet('{path}')"
-        )
+        files = parquet_files(Path(sys.argv[1]) / "mart_tenant_growth")
+        rows = connection.read_parquet(files)
+        connection.register("mart_tenant_growth", rows)
         return connection
     return duckdb.connect(str(data_dir() / "gold" / "warehouse.duckdb"), read_only=True)
 

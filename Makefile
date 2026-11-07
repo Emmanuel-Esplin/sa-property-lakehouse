@@ -1,6 +1,7 @@
 # Usage: make install | make test | make lint | make all
 #        make cpi | make retail | make gold | make reconcile
 #        make tf-check | make tf-plan | make tf-apply | make tf-destroy
+#        make glue-run | make dbt-athena | make cloud-check
 PYTHON ?= .venv/bin/python
 BOOTSTRAP_PYTHON ?= /opt/anaconda3/bin/python
 # macOS can hide the editable-install .pth under iCloud-synced Desktop, so set this explicitly.
@@ -15,8 +16,8 @@ endif
 export TF_DATA_DIR := .terraform.nosync
 TF_DEV = terraform -chdir=infra/envs/dev
 
-.PHONY: install lint format test cpi retail gold reconcile spark-parity all \
-	tf-check tf-plan tf-apply tf-destroy glue-run cloud-check
+.PHONY: install lint format test cpi retail gold reconcile all \
+	tf-check tf-plan tf-apply tf-destroy glue-run dbt-athena cloud-check
 
 install:
 	# .nosync keeps these out of iCloud, which offloads files and makes reads hang.
@@ -46,15 +47,10 @@ retail:
 	$(PYTHON) -m ingestion.stats_sa.retail_trade
 
 gold:
-	$(PYTHON) -m transform.build
+	$(PYTHON) -m transform.run
 
 reconcile:
 	$(PYTHON) scripts/reconcile_august_2026.py
-
-# Build the marts in Spark from local silver and compare every row with DuckDB.
-spark-parity:
-	$(PYTHON) -m processing.silver_to_gold.local
-	$(PYTHON) scripts/compare_gold.py data/spark_gold
 
 all: cpi retail gold
 
@@ -79,14 +75,21 @@ tf-apply:
 tf-destroy:
 	$(TF_DEV) destroy
 
-# Runs both Spark jobs on AWS, which costs a few cents.
+LAKE_BUCKET = $$(terraform -chdir=infra/envs/dev output -raw lake_bucket)
+
+# Spark on Glue: bronze to silver. Costs a few cents.
 glue-run:
 	bash scripts/run_glue_job.sh sa-property-lakehouse-bronze-to-silver
-	bash scripts/run_glue_job.sh sa-property-lakehouse-silver-to-gold
 
-# Compare the marts built on AWS with the local marts and with Stats SA's published figures.
+# dbt on Athena: silver to gold, with every data test. Costs under a cent.
+dbt-athena:
+	LAKE_BUCKET=$(LAKE_BUCKET) $(PYTHON) -m transform.run --target athena
+
+# Checks the marts from the last `make dbt-athena` against the local marts and Stats SA's
+# published figures.
 cloud-check:
-	aws s3 sync --delete --only-show-errors \
-		s3://$$(terraform -chdir=infra/envs/dev output -raw lake_bucket)/exports/gold/ data/cloud_gold/
+	aws s3 rm --recursive --quiet s3://$(LAKE_BUCKET)/exports/dbt/
+	LAKE_BUCKET=$(LAKE_BUCKET) $(PYTHON) -m transform.run --target athena --export
+	aws s3 sync --delete --only-show-errors s3://$(LAKE_BUCKET)/exports/dbt/ data/cloud_gold/
 	$(PYTHON) scripts/compare_gold.py data/cloud_gold
 	$(PYTHON) scripts/reconcile_august_2026.py data/cloud_gold

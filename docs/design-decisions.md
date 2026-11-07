@@ -79,18 +79,29 @@ can't drift apart, and a change to the workbook stops both runs in the same way.
 ## Iceberg tables in the Glue catalog
 
 Glue 5.0 supports Iceberg natively, so no extra JARs are needed. Delta would also have worked. Iceberg
-was chosen because Athena and dbt, planned for Phase 4, can query it through the same catalog. Each
-run replaces the tables, and Iceberg keeps earlier snapshots.
+was chosen because Athena reads and writes it through the same catalog. Each run replaces the tables,
+and Iceberg keeps earlier snapshots.
 
-## Spark SQL and DuckDB SQL exist side by side, for now
+## One set of dbt models for two engines
 
-Spark 3.5 has no `QUALIFY` or `arg_max`, so the marts are written twice. That is a real maintenance
-cost, so `make spark-parity` and a test compare every row. Phase 4 should keep one set of models.
+The marts were first written twice, in DuckDB SQL and Spark SQL. Two copies would drift, so one dbt
+project now builds them on DuckDB locally and on Athena in AWS. The models avoid features only one
+engine has, such as `QUALIFY`, and use dbt's date macros where the syntax differs. Staging is the
+only engine-specific part: it reads Parquet files locally and the silver Iceberg tables on Athena.
+
+Spark keeps the bronze to silver step, which reuses the Python parser and contract.
+
+## Data tests live in dbt
+
+Silver is checked twice: by the Python contract when it's written, and by dbt tests when it's read.
+The dbt tests cover nulls, duplicates, month gaps, unknown categories and allowed values. The growth
+identity, CPI coverage and seasonal index average are singular tests. A failing test stops the build
+on both engines.
 
 ## Results are compared with the source, not just the other engine
 
-Two engines could share a mistake. So the marts built on AWS are compared with the local marts row
-by row, and separately with figures published by Stats SA. Ties in the seasonal index are the one
+Two engines could share a mistake. So the marts built on Athena are compared with the local marts
+row by row, and separately with figures published by Stats SA. Ties in the seasonal index are the one
 thing neither engine defines, and the real data has none.
 
 ## One bucket, split by prefix

@@ -1,0 +1,33 @@
+name: sa_property_lakehouse
+version: "1.0.0"
+config-version: 2
+profile: sa_property_lakehouse
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+
+# Every model runs on DuckDB locally and on Athena in AWS, so SQL sticks to what both support.
+# table_type and format only apply on Athena, where every table is Iceberg. DuckDB ignores them.
+models:
+  sa_property_lakehouse:
+    +table_type: iceberg
+    +format: parquet
+    staging:
+      +materialized: view
+    intermediate:
+      +materialized: table
+    marts:
+      +materialized: table
+
+seeds:
+  sa_property_lakehouse:
+    retail_categories:
+      +column_types:
+        category: varchar
+        label: varchar
+        segment: varchar
+
+vars:
+  silver_dir: "{{ env_var('LAKEHOUSE_DATA_DIR', '../data') }}/silver"

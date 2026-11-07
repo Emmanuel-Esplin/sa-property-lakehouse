@@ -1,0 +1,28 @@
+version: 2
+
+models:
+  - name: mart_tenant_growth
+    description: Year-on-year growth by retailer type, split into volume and price, with CPI.
+    data_tests:
+      - unique_combination:
+          columns: [month, category]
+  - name: mart_tenant_scorecard
+    description: Latest 12 months against the 12 before, by retailer type.
+    columns:
+      - name: category
+        data_tests: [not_null, unique]
+  - name: mart_segment_scorecard
+    description: The scorecard windows, with categories added together into segments.
+    columns:
+      - name: segment
+        data_tests: [not_null, unique]
+  - name: mart_seasonality_monthly
+    description: Seasonal index by retailer type and calendar month.
+    data_tests:
+      - unique_combination:
+          columns: [category, month_of_year]
+  - name: mart_seasonality_summary
+    description: Peak, trough and amplitude of each retailer type's seasonal pattern.
+    columns:
+      - name: category
+        data_tests: [not_null, unique]
