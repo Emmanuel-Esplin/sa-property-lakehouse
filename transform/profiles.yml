@@ -1,0 +1,18 @@
+# No secrets here: Athena uses the AWS credentials of whoever runs dbt.
+sa_property_lakehouse:
+  target: local
+  outputs:
+    local:
+      type: duckdb
+      path: "{{ env_var('LAKEHOUSE_DATA_DIR', '../data') }}/gold/warehouse.duckdb"
+      threads: 1
+    athena:
+      type: athena
+      region_name: eu-west-1
+      database: awsdatacatalog
+      schema: sa_property_lakehouse_marts
+      work_group: sa-property-lakehouse
+      # The default only lets the local target load. transform/run.py refuses Athena without it.
+      s3_staging_dir: "s3://{{ env_var('LAKE_BUCKET', '') }}/athena-results/dbt/"
+      s3_data_dir: "s3://{{ env_var('LAKE_BUCKET', '') }}/marts/"
+      threads: 2

@@ -1,22 +1,21 @@
 -- Latest 12 months against the 12 before them, which is steadier than any single month.
-create or replace temporary view mart_tenant_scorecard as
 with latest as (
-    select max(month) as latest_month from mart_tenant_growth
+    select max(month) as latest_month from {{ ref('mart_tenant_growth') }}
 ),
 windowed as (
     select
         g.*,
         l.latest_month,
-        cast(months_between(l.latest_month, g.month) as int) as months_ago
-    from mart_tenant_growth as g
+        {{ dbt.datediff('g.month', 'l.latest_month', 'month') }} as months_ago
+    from {{ ref('mart_tenant_growth') }} as g
     cross join latest as l
 ),
 summary as (
     select
         category,
-        any_value(label) as label,
-        any_value(segment) as segment,
-        any_value(latest_month) as latest_month,
+        max(label) as label,
+        max(segment) as segment,
+        max(latest_month) as latest_month,
         sum(nominal_rmillion) filter (where months_ago < 12) as nominal_t12,
         sum(nominal_rmillion) filter (where months_ago between 12 and 23) as nominal_p12,
         sum(real_rmillion) filter (where months_ago < 12) as real_t12,

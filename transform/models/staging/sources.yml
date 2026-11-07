@@ -1,0 +1,10 @@
+version: 2
+
+# Only the Athena target reads these. Locally, staging reads the silver Parquet files.
+sources:
+  - name: silver
+    schema: sa_property_lakehouse
+    description: Iceberg tables written by the bronze-to-silver Glue job.
+    tables:
+      - name: silver_retail_trade
+      - name: silver_cpi

@@ -26,7 +26,8 @@ On AWS, these are the Iceberg tables `silver_retail_trade` and `silver_cpi` in t
 
 ## Gold
 
-On AWS, each mart is an Iceberg table of the same name in the same database.
+dbt builds these. On AWS, each mart is an Iceberg table of the same name in the Glue database
+`sa_property_lakehouse_marts`.
 
 ### `mart_tenant_growth`
 

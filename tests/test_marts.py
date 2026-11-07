@@ -1,9 +1,11 @@
+"""The dbt marts, built locally on DuckDB from synthetic data with known answers."""
+
 import duckdb
 import pandas as pd
 import pytest
 
 from ingestion.stats_sa.retail_trade import write_silver
-from transform.build import build
+from transform.run import DbtFailed, build
 
 
 def build_gold(root, retail, cpi):
@@ -80,13 +82,34 @@ def test_seasonality_skips_lockdown_years(tmp_path, retail, cpi):
 
 def test_build_rejects_category_missing_from_seed(tmp_path, retail, cpi):
     retail["category"] = retail["category"].replace("general_dealers", "new_category")
-    with pytest.raises(ValueError, match="missing from the seed"):
+    with pytest.raises(DbtFailed, match="relationships"):
         build_gold(tmp_path, retail, cpi)
 
 
 def test_build_rejects_months_without_cpi(tmp_path, retail, cpi):
-    with pytest.raises(ValueError, match="no CPI"):
+    with pytest.raises(DbtFailed, match="assert_retail_months_have_cpi"):
         build_gold(tmp_path, retail, cpi[cpi["month"] < pd.Timestamp(2025, 1, 1).date()])
+
+
+def write_unchecked_silver(root, retail, cpi):
+    """Skip the Python contract, to prove dbt's own tests catch the same problems."""
+    silver = root / "silver"
+    silver.mkdir(parents=True)
+    retail.assign(month=retail["month"].dt.date).to_parquet(silver / "retail_trade.parquet")
+    cpi.to_parquet(silver / "cpi.parquet", index=False)
+
+
+def test_dbt_catches_a_month_gap(tmp_path, retail, cpi):
+    gap = retail[~((retail["month"] == "2023-06-01") & (retail["category"] == "total"))]
+    write_unchecked_silver(tmp_path, gap, cpi)
+    with pytest.raises(DbtFailed, match="no_month_gaps"):
+        build(tmp_path)
+
+
+def test_dbt_catches_duplicate_rows(tmp_path, retail, cpi):
+    write_unchecked_silver(tmp_path, pd.concat([retail, retail.head(1)]), cpi)
+    with pytest.raises(DbtFailed, match="unique_combination"):
+        build(tmp_path)
 
 
 def test_build_needs_silver_inputs(tmp_path):

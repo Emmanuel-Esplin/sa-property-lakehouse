@@ -1,0 +1,13 @@
+version: 2
+
+seeds:
+  - name: retail_categories
+    description: Stats SA retailer types, with this project's defensive and discretionary judgement.
+    columns:
+      - name: category
+        data_tests: [not_null, unique]
+      - name: segment
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [defensive, discretionary, mixed, total]

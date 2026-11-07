@@ -32,4 +32,14 @@ run "dev_environment_fits_together" {
     condition     = aws_cloudwatch_log_group.cpi.retention_in_days == 14 && aws_cloudwatch_log_group.retail.retention_in_days == 14
     error_message = "Logs must expire so they do not accumulate cost."
   }
+
+  assert {
+    condition     = aws_athena_workgroup.lakehouse.configuration[0].bytes_scanned_cutoff_per_query <= 1073741824
+    error_message = "Athena queries must stop at 1 GB scanned."
+  }
+
+  assert {
+    condition     = aws_athena_workgroup.lakehouse.configuration[0].enforce_workgroup_configuration
+    error_message = "Clients must not be able to override the workgroup's limits."
+  }
 }

@@ -13,11 +13,15 @@ dependencies = [
   "openpyxl>=3.1",
   "pandas>=2.2",
   "pyarrow>=15",
+  "dbt-core>=1.10,<2",
+  "dbt-duckdb>=1.9",
 ]
 
 [project.optional-dependencies]
 # PySpark matches Glue 5.0, which runs Spark 3.5.4.
 dev = ["pytest>=8", "ruff>=0.6", "pyspark==3.5.4"]
+# botocore[crt] lets dbt use credentials from `aws login`.
+cloud = ["dbt-athena>=1.9", "botocore[crt]"]
 
 [tool.setuptools.packages.find]
 include = ["ingestion*", "processing*", "transform*"]

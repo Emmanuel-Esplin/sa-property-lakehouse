@@ -163,7 +163,7 @@ resource "aws_cloudwatch_log_group" "glue" {
   retention_in_days = 14
 }
 
-# Everything the Glue jobs import, plus the SQL and seed they read.
+# Everything the Glue job imports.
 data "archive_file" "lakehouse" {
   type        = "zip"
   output_path = "${path.module}/build.nosync/lakehouse.zip"
@@ -172,9 +172,6 @@ data "archive_file" "lakehouse" {
     for_each = setunion(
       fileset(local.repo_root, "ingestion/**/*.py"),
       fileset(local.repo_root, "processing/**/*.py"),
-      fileset(local.repo_root, "processing/**/*.sql"),
-      fileset(local.repo_root, "transform/__init__.py"),
-      fileset(local.repo_root, "transform/seeds/*.csv"),
     )
     content {
       content  = file("${local.repo_root}/${source.value}")
@@ -205,19 +202,39 @@ module "glue_bronze_to_silver" {
   depends_on = [aws_cloudwatch_log_group.glue]
 }
 
-module "glue_silver_to_gold" {
-  source            = "../../modules/glue_job"
-  job_name          = "${local.name}-silver-to-gold"
-  bucket_id         = module.lake.bucket_id
-  bucket_arn        = module.lake.bucket_arn
-  script_path       = "${local.repo_root}/processing/silver_to_gold/job.py"
-  read_prefixes     = []
-  write_prefixes    = ["warehouse/", "exports/"]
-  catalog_database  = module.glue.database_name
-  default_arguments = local.glue_arguments
-  depends_on        = [aws_cloudwatch_log_group.glue]
+# dbt on Athena writes the marts here. Terraform owns it, so a destroy removes the tables too.
+module "glue_marts" {
+  source        = "../../modules/glue"
+  database_name = "sa_property_lakehouse_marts"
+}
+
+resource "aws_athena_workgroup" "lakehouse" {
+  name          = local.name
+  force_destroy = true
+
+  configuration {
+    enforce_workgroup_configuration    = true
+    publish_cloudwatch_metrics_enabled = false
+    # Athena bills per TB scanned. The marts are a few MB, so anything near 1 GB is a mistake.
+    bytes_scanned_cutoff_per_query = 1073741824
+
+    engine_version {
+      selected_engine_version = "Athena engine version 3"
+    }
+
+    result_configuration {
+      output_location = "s3://${module.lake.bucket_name}/athena-results/"
+      encryption_configuration {
+        encryption_option = "SSE_S3"
+      }
+    }
+  }
 }
 
 output "glue_jobs" {
-  value = [module.glue_bronze_to_silver.job_name, module.glue_silver_to_gold.job_name]
+  value = [module.glue_bronze_to_silver.job_name]
+}
+
+output "athena_workgroup" {
+  value = aws_athena_workgroup.lakehouse.name
 }
