@@ -28,6 +28,11 @@ seeds:
         category: varchar
         label: varchar
         segment: varchar
+    reits:
+      +column_types:
+        ticker: varchar
+        name: varchar
+        sector: varchar
 
 vars:
   silver_dir: "{{ env_var('LAKEHOUSE_DATA_DIR', '../data') }}/silver"

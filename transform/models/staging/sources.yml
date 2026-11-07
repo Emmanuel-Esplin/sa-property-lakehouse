@@ -9,3 +9,5 @@ sources:
       - name: silver_retail_trade
       - name: silver_cpi
       - name: silver_rates
+      - name: silver_reit_prices
+      - name: silver_reit_distributions

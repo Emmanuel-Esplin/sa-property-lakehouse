@@ -31,6 +31,36 @@ models:
       - name: value_rmillion
         data_tests: [not_null]
 
+  - name: stg_reit_prices
+    description: REIT closing prices in cents, one row per trading day and ticker.
+    data_tests:
+      - unique_combination:
+          columns: [price_date, ticker]
+    columns:
+      - name: ticker
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('reits')
+                field: ticker
+      - name: close_cents
+        data_tests: [not_null]
+
+  - name: stg_reit_distributions
+    description: REIT distributions per share in cents, one row per ex-date and ticker.
+    data_tests:
+      - unique_combination:
+          columns: [ex_date, ticker]
+    columns:
+      - name: ticker
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('reits')
+                field: ticker
+      - name: amount_cents
+        data_tests: [not_null]
+
   - name: stg_rates
     description: SARB interest rates, one row per business day and series.
     data_tests:

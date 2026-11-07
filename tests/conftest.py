@@ -4,6 +4,8 @@ import openpyxl
 import pandas as pd
 import pytest
 
+from ingestion.market import reits as market
+
 NOMINAL_GROWTH = {"general_dealers": 0.10, "textiles_clothing_footwear": 0.03}
 REAL_GROWTH = {"general_dealers": 0.04, "textiles_clothing_footwear": -0.02}
 BASE = {"general_dealers": 1000.0, "textiles_clothing_footwear": 500.0}
@@ -54,6 +56,53 @@ def rates() -> pd.DataFrame:
                 (rate_date.date(), "govt_bond_10y_plus", bond),
             ]
     return pd.DataFrame(rows, columns=["rate_date", "series", "value_pct"])
+
+
+def reit_price_rows() -> pd.DataFrame:
+    """Prices on the 1st, 10th and 20th of each month, 2022 to 2025, flat within a month.
+
+    VKE (retail) rises 1% every month. EQU (logistics) is flat, except for a 5% fall in June 2024,
+    the month the rates fixture raises repo by 0.25 points.
+    """
+    rows = []
+    for k, month in enumerate(pd.date_range("2022-01-01", "2025-12-01", freq="MS")):
+        for day in (1, 10, 20):
+            price_date = month.replace(day=day).date()
+            equites = 1900.0 if month >= pd.Timestamp(2024, 6, 1) else 2000.0
+            rows += [(price_date, "VKE", 1000 * 1.01**k), (price_date, "EQU", equites)]
+    return pd.DataFrame(rows, columns=["price_date", "ticker", "close_cents"])
+
+
+def reit_distribution_rows() -> pd.DataFrame:
+    """VKE pays 30 cents a share every March and September. EQU pays nothing."""
+    rows = [
+        (pd.Timestamp(year, month, 15).date(), "VKE", 30.0)
+        for year in range(2022, 2026)
+        for month in (3, 9)
+    ]
+    return pd.DataFrame(rows, columns=["ex_date", "ticker", "amount_cents"])
+
+
+@pytest.fixture
+def reit_prices() -> pd.DataFrame:
+    return reit_price_rows()
+
+
+@pytest.fixture
+def reit_distributions() -> pd.DataFrame:
+    return reit_distribution_rows()
+
+
+def write_market_silver(root, prices=None, distributions=None) -> None:
+    """Write REIT silver files. Without data, they are empty, like before any file lands."""
+    market.write_silver(
+        root, market.PRICES, market.empty_frame(market.PRICES) if prices is None else prices
+    )
+    market.write_silver(
+        root,
+        market.DISTRIBUTIONS,
+        market.empty_frame(market.DISTRIBUTIONS) if distributions is None else distributions,
+    )
 
 
 # Labels are copied from the real P6242.1 workbook; the values are invented.

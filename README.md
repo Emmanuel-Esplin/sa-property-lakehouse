@@ -7,8 +7,8 @@ and its market. It has two domains: **tenant trading**, built from national reta
 > **Status: Phases 1 to 4 complete.** Tenant trading runs on real data through the August 2026
 > release. One dbt project builds the marts locally on DuckDB and on AWS on Athena, from silver
 > tables that Spark writes as Iceberg. Both give identical results. The AWS account is temporary,
-> so the cloud environment may be torn down. The REIT module has its interest-rate data. REIT
-> prices and dividends still need a source whose terms allow this use.
+> so the cloud environment may be torn down. The REIT module's rates are live. Its REIT marts are
+> built and tested, and fill once price and distribution files are landed.
 
 ## What the data shows
 
@@ -92,6 +92,7 @@ make install
 make test
 make cpi       # fetch CPI from SARB
 make rates     # fetch the policy rate, prime and bond yield from SARB
+make reits     # check REIT price and distribution files you've landed
 ```
 
 Retail data takes one manual step, because Stats SA's site blocks scripted clients:
@@ -101,6 +102,9 @@ Retail data takes one manual step, because Stats SA's site blocks scripted clien
 2. Put the Excel workbook (`.xlsx`) anywhere under `data/landing/stats_sa/retail_trade/`. Keep only
    the latest one there: other formats are ignored, and two workbooks stop the run.
 3. Run `make retail`, then `make gold`, which builds and tests the dbt models.
+
+REIT prices and distributions are also downloaded by hand, as CSV files in a fixed format. See
+[docs/market-data-format.md](docs/market-data-format.md).
 
 Marts are written to `data/gold/warehouse.duckdb`.
 
@@ -128,7 +132,7 @@ The cost design and guardrails are in [docs/aws-costs.md](docs/aws-costs.md).
 | 2 | Terraform: S3, IAM, Glue; ingestion on Lambda | Done, verified on AWS |
 | 3 | PySpark on Glue: bronze to silver with Iceberg | Done, verified on AWS |
 | 4 | dbt marts on DuckDB and Athena, with data tests | Done for tenant trading |
-| 5 | REIT module: SARB rates, REIT prices and dividends, and their marts | Rates done, REIT data pending |
+| 5 | REIT module: SARB rates, REIT prices and dividends, and their marts | Built and tested locally; REIT data and AWS pending |
 | 6 | Orchestration and Terraform plan in CI | Planned |
 | 7 | Dashboard and written findings | Planned |
 
