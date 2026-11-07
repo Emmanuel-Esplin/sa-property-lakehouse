@@ -19,6 +19,7 @@ locals {
     "common/s3_writer.py",
     "sarb/__init__.py",
     "sarb/client.py",
+    "sarb/series.py",
   ]
 }
 
@@ -54,8 +55,8 @@ data "archive_file" "ingestion" {
   }
 }
 
-resource "aws_cloudwatch_log_group" "cpi" {
-  name              = "${local.log_prefix}-cpi"
+resource "aws_cloudwatch_log_group" "sarb" {
+  name              = "${local.log_prefix}-sarb"
   retention_in_days = 14
 }
 
@@ -64,10 +65,10 @@ resource "aws_cloudwatch_log_group" "retail" {
   retention_in_days = 14
 }
 
-module "cpi_role" {
+module "sarb_role" {
   source         = "../../modules/iam"
-  role_name      = "${local.name}-cpi"
-  log_group_arn  = aws_cloudwatch_log_group.cpi.arn
+  role_name      = "${local.name}-sarb"
+  log_group_arn  = aws_cloudwatch_log_group.sarb.arn
   bucket_arn     = module.lake.bucket_arn
   write_prefixes = ["bronze/sarb/"]
 }
@@ -81,14 +82,14 @@ module "retail_role" {
   write_prefixes = ["bronze/stats_sa/"]
 }
 
-module "cpi_lambda" {
+module "sarb_lambda" {
   source         = "../../modules/lambda"
-  function_name  = "${local.name}-cpi"
-  handler        = "ingestion.lambda_handlers.cpi_handler"
-  role_arn       = module.cpi_role.role_arn
+  function_name  = "${local.name}-sarb"
+  handler        = "ingestion.lambda_handlers.sarb_handler"
+  role_arn       = module.sarb_role.role_arn
   zip_path       = data.archive_file.ingestion.output_path
   zip_hash       = data.archive_file.ingestion.output_base64sha256
-  log_group_name = aws_cloudwatch_log_group.cpi.name
+  log_group_name = aws_cloudwatch_log_group.sarb.name
   environment    = { LAKE_BUCKET = module.lake.bucket_name }
 }
 
@@ -103,23 +104,24 @@ module "retail_lambda" {
   environment    = { LAKE_BUCKET = module.lake.bucket_name }
 }
 
-# CPI is monthly, and an unchanged response writes nothing, so a weekly check is plenty.
-resource "aws_cloudwatch_event_rule" "cpi" {
-  name                = "${local.name}-cpi-weekly"
+# CPI is monthly and rates change a few times a year. An unchanged response writes nothing, and
+# daily bond yields only feed monthly averages, so a weekly fetch is plenty.
+resource "aws_cloudwatch_event_rule" "sarb" {
+  name                = "${local.name}-sarb-weekly"
   schedule_expression = "cron(0 6 ? * MON *)"
 }
 
-resource "aws_cloudwatch_event_target" "cpi" {
-  rule = aws_cloudwatch_event_rule.cpi.name
-  arn  = module.cpi_lambda.arn
+resource "aws_cloudwatch_event_target" "sarb" {
+  rule = aws_cloudwatch_event_rule.sarb.name
+  arn  = module.sarb_lambda.arn
 }
 
-resource "aws_lambda_permission" "cpi_schedule" {
+resource "aws_lambda_permission" "sarb_schedule" {
   statement_id  = "AllowSchedule"
   action        = "lambda:InvokeFunction"
-  function_name = module.cpi_lambda.name
+  function_name = module.sarb_lambda.name
   principal     = "events.amazonaws.com"
-  source_arn    = aws_cloudwatch_event_rule.cpi.arn
+  source_arn    = aws_cloudwatch_event_rule.sarb.arn
 }
 
 resource "aws_lambda_permission" "retail_upload" {
@@ -152,8 +154,8 @@ output "retail_upload_command" {
   value = "aws s3 cp <workbook.xlsx> s3://${module.lake.bucket_name}/landing/stats_sa/"
 }
 
-output "cpi_lambda" {
-  value = module.cpi_lambda.name
+output "sarb_lambda" {
+  value = module.sarb_lambda.name
 }
 
 # Glue writes to these groups. Created here so logs expire and a destroy removes them.

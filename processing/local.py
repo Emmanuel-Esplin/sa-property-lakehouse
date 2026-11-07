@@ -7,6 +7,7 @@ from pyspark.sql import SparkSession
 
 
 def local_session() -> SparkSession:
+    """A small Spark session on this machine, with the UI off and few shuffle partitions."""
     # Otherwise workers use whichever python3 is on PATH, which may be another version.
     os.environ["PYSPARK_PYTHON"] = sys.executable
     return (

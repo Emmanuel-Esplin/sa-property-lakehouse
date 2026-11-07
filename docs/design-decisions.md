@@ -64,6 +64,22 @@ Defensive and discretionary aren't Stats SA labels. General dealers, specialised
 are treated as defensive. Clothing, furniture and hardware are discretionary. Change the mapping in
 `transform/seeds/retail_categories.csv`. An unmapped category fails the build.
 
+## One list of SARB series
+
+`ingestion/sarb/series.py` names every SARB series the project reads, with the wording SARB must
+use to describe it. The Lambda, the local pipeline and the Glue job all read that list, so adding a
+series is one line. A changed description stops the run, because it can mean a changed measure.
+
+## Daily rates in silver, monthly rates in dbt
+
+Silver keeps SARB's daily rates as published, and dbt turns them into months. Policy and prime rates
+move in steps, so the month-end value is the rate that applied. The bond yield moves every day, so
+it's averaged. The mart starts when every series has started and stops at the last month that has
+ended, so no month is built from part of its data.
+
+Prime has been the policy rate plus 3.5 points on every day since August 2004. A dbt test checks
+this from 2005, as an independent check on the month-end logic.
+
 ## Lambda only moves files
 
 Lambda copies source files into bronze using the standard library and the boto3 in its runtime.

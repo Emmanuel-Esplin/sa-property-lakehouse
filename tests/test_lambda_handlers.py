@@ -1,3 +1,5 @@
+"""The Lambda handlers, run against a fake S3 so no AWS account is needed."""
+
 import io
 import json
 import subprocess
@@ -5,7 +7,8 @@ import sys
 
 import pytest
 
-from ingestion.lambda_handlers import cpi_handler, retail_handler
+from ingestion.lambda_handlers import retail_handler, sarb_handler
+from ingestion.sarb.series import ALL as SARB_SERIES
 
 WORKBOOK = b"PK\x03\x04 workbook"
 
@@ -70,19 +73,24 @@ def test_retail_rejects_a_saved_bot_challenge_page():
     assert not any(k.startswith("bronze/") for k in s3.objects)
 
 
-def test_cpi_stores_the_response(monkeypatch):
+def test_sarb_stores_every_series(monkeypatch):
     monkeypatch.setenv("LAKE_BUCKET", "lake")
     s3 = FakeS3()
-    raw = json.dumps([{"Value": 4.5}]).encode()
-    result = cpi_handler({}, None, client=s3, fetch=lambda *_: raw)
-    assert result["is_new"] and s3.objects[result["key"]] == raw
+    # Each fake response names its series, so a mix-up between series would show.
+    results = sarb_handler(
+        {}, None, client=s3, fetch=lambda code, *_: json.dumps([{"Value": code}]).encode()
+    )
+    assert [r["series"] for r in results] == [series.dataset for series in SARB_SERIES]
+    for result, series in zip(results, SARB_SERIES, strict=True):
+        assert result["key"].startswith(f"bronze/sarb/{series.dataset}/")
+        assert json.loads(s3.objects[result["key"]]) == [{"Value": series.code}]
 
 
-def test_cpi_refuses_an_empty_response(monkeypatch):
+def test_sarb_refuses_an_empty_response(monkeypatch):
     monkeypatch.setenv("LAKE_BUCKET", "lake")
     s3 = FakeS3()
-    with pytest.raises(ValueError, match="no CPI"):
-        cpi_handler({}, None, client=s3, fetch=lambda *_: b"[]")
+    with pytest.raises(ValueError, match="no cpi observations"):
+        sarb_handler({}, None, client=s3, fetch=lambda *_: b"[]")
     assert not s3.objects
 
 
@@ -94,7 +102,7 @@ def test_real_s3_errors_are_not_swallowed(monkeypatch):
             raise Denied
 
     with pytest.raises(Denied):
-        cpi_handler({}, None, client=Failing(), fetch=lambda *_: b'[{"Value": 1}]')
+        sarb_handler({}, None, client=Failing(), fetch=lambda *_: b'[{"Value": 1}]')
 
 
 def test_handlers_do_not_import_heavy_dependencies():

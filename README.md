@@ -7,14 +7,15 @@ and its market. It has two domains: **tenant trading**, built from national reta
 > **Status: Phases 1 to 4 complete.** Tenant trading runs on real data through the August 2026
 > release. One dbt project builds the marts locally on DuckDB and on AWS on Athena, from silver
 > tables that Spark writes as Iceberg. Both give identical results. The AWS account is temporary,
-> so the cloud environment may be torn down. The REIT module is planned.
+> so the cloud environment may be torn down. The REIT module has its interest-rate data. REIT
+> prices and dividends still need a source whose terms allow this use.
 
 ## What the data shows
 
 Latest 12 months (September 2025 to August 2026) against the 12 before. CPI averaged 3.8%.
 
 | Retailer type | Segment | Sales growth | Volume | Implied price | Beat CPI? |
-|---|---|---:|---:|---:|---|
+| --- | --- | ---: | ---: | ---: | --- |
 | Pharmaceuticals and cosmetics | Defensive | 6.5% | 3.5% | 3.0% | Yes |
 | All other retailers | Mixed | 5.8% | 7.4% | -1.5% | Yes |
 | Food, beverages and tobacco | Defensive | 5.1% | **-1.1%** | 6.3% | Yes |
@@ -71,7 +72,7 @@ flowchart LR
 ```
 
 | Step | Locally | On AWS |
-|---|---|---|
+| --- | --- | --- |
 | Into bronze | Python, from the landing folder | Lambda, on upload or weekly schedule |
 | Bronze to silver | Python parser and contract | The same code, in Spark on Glue, writing Iceberg |
 | Silver to gold | dbt on DuckDB | The same dbt models on Athena, writing Iceberg |
@@ -90,6 +91,7 @@ Requires Python 3.12 or later, and Java 8, 11 or 17 for the Spark tests. `make i
 make install
 make test
 make cpi       # fetch CPI from SARB
+make rates     # fetch the policy rate, prime and bond yield from SARB
 ```
 
 Retail data takes one manual step, because Stats SA's site blocks scripted clients:
@@ -121,19 +123,19 @@ The cost design and guardrails are in [docs/aws-costs.md](docs/aws-costs.md).
 ## Roadmap
 
 | Phase | Scope | Status |
-|---|---|---|
+| --- | --- | --- |
 | 1 | Local ingestion and DuckDB marts for tenant trading | Done |
 | 2 | Terraform: S3, IAM, Glue; ingestion on Lambda | Done, verified on AWS |
 | 3 | PySpark on Glue: bronze to silver with Iceberg | Done, verified on AWS |
 | 4 | dbt marts on DuckDB and Athena, with data tests | Done for tenant trading |
-| 5 | REIT module: market prices, SARB rates and their dbt marts | Planned |
+| 5 | REIT module: SARB rates, REIT prices and dividends, and their marts | Rates done, REIT data pending |
 | 6 | Orchestration and Terraform plan in CI | Planned |
 | 7 | Dashboard and written findings | Planned |
 
 ## Data sources
 
-Retail trade sales: Statistics South Africa, release P6242.1. CPI: South African Reserve Bank web
-API, series `CPI1000F`. Source data is not stored in this repository.
+Retail trade sales: Statistics South Africa, release P6242.1. CPI and interest rates: South African
+Reserve Bank web API, series `CPI1000F`, `MMRD002A`, `MMRD000A` and `CMJD004A`. Source data is not stored in this repository.
 
 ## License
 

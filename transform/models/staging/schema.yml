@@ -31,6 +31,22 @@ models:
       - name: value_rmillion
         data_tests: [not_null]
 
+  - name: stg_rates
+    description: SARB interest rates, one row per business day and series.
+    data_tests:
+      - unique_combination:
+          columns: [rate_date, series]
+    columns:
+      - name: rate_date
+        data_tests: [not_null]
+      - name: series
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [repo_rate, prime_rate, govt_bond_10y_plus]
+      - name: value_pct
+        data_tests: [not_null]
+
   - name: stg_cpi
     description: Headline CPI year-on-year %, from SARB.
     data_tests:

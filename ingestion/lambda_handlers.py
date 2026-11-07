@@ -1,7 +1,7 @@
 """AWS Lambda entry points. They only move source files into bronze.
 
-Parsing needs pandas and belongs to the PySpark jobs in Phase 3, so this package stays
-standard-library only, plus the boto3 that the Lambda runtime provides.
+Parsing needs pandas, which belongs to the Glue job, so this package stays standard-library only,
+plus the boto3 that the Lambda runtime provides.
 """
 
 import json
@@ -10,27 +10,40 @@ import urllib.parse
 from datetime import date
 
 from ingestion.common.s3_writer import put_bronze
-from ingestion.sarb.client import API, CPI_SERIES, START_DATE, fetch_series
+from ingestion.sarb.client import API, START_DATE, fetch_series
+from ingestion.sarb.series import ALL as SARB_SERIES
 
 XLSX_SIGNATURE = b"PK\x03\x04"
 
 
 def _s3_client():
+    # Imported here so tests, which pass their own client, don't need boto3 installed.
     import boto3
 
     return boto3.client("s3")
 
 
-def cpi_handler(event, context, client=None, fetch=fetch_series) -> dict:
-    """Scheduled: store the latest SARB CPI response."""
+def sarb_handler(event, context, client=None, fetch=fetch_series) -> list[dict]:
+    """Scheduled: store the latest response for every SARB series the project uses."""
     client = client or _s3_client()
-    raw = fetch(CPI_SERIES, START_DATE, date.today().isoformat())
-    if not json.loads(raw):
-        raise ValueError("SARB returned no CPI observations")
-    stored = put_bronze(
-        client, os.environ["LAKE_BUCKET"], "sarb", "cpi", "cpi.json", raw, f"{API}/{CPI_SERIES}"
-    )
-    return {"key": stored.key, "is_new": stored.is_new}
+    bucket = os.environ["LAKE_BUCKET"]
+    end = date.today().isoformat()
+    results = []
+    for series in SARB_SERIES:
+        raw = fetch(series.code, START_DATE, end)
+        if not json.loads(raw):
+            raise ValueError(f"SARB returned no {series.dataset} observations")
+        stored = put_bronze(
+            client,
+            bucket,
+            "sarb",
+            series.dataset,
+            f"{series.dataset}.json",
+            raw,
+            f"{API}/{series.code}",
+        )
+        results.append({"series": series.dataset, "key": stored.key, "is_new": stored.is_new})
+    return results
 
 
 def retail_handler(event, context, client=None) -> list[dict]:
@@ -42,6 +55,7 @@ def retail_handler(event, context, client=None) -> list[dict]:
         # S3 events URL-encode keys, and spaces arrive as "+".
         key = urllib.parse.unquote_plus(record["s3"]["object"]["key"])
         content = client.get_object(Bucket=bucket, Key=key)["Body"].read()
+        # Every .xlsx is a zip file. A saved bot-challenge page is HTML and fails here.
         if not content.startswith(XLSX_SIGNATURE):
             raise ValueError(f"{key} is not an .xlsx workbook. Download it again.")
         stored = put_bronze(

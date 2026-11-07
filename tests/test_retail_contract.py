@@ -1,3 +1,5 @@
+"""The Stats SA workbook: landing, parsing, and the silver contract."""
+
 import pandas as pd
 import pytest
 

@@ -1,3 +1,4 @@
+-- One line per retailer type: its peak and trough months, and how far apart they are.
 select
     s.category,
     c.label,

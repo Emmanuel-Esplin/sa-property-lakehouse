@@ -24,6 +24,7 @@ class DbtFailed(RuntimeError):
 
 
 def dbt(root: Path, command: list[str], target: str = "local") -> str:
+    """Run one dbt command. Its files and logs go under the data folder, not the repo."""
     env = {
         **os.environ,
         "LAKEHOUSE_DATA_DIR": str(root),
@@ -56,9 +57,11 @@ def dbt(root: Path, command: list[str], target: str = "local") -> str:
 def build(root: Path) -> Path:
     """Seed, build and test every model locally. Returns the warehouse path."""
     silver = root / "silver"
-    for name in ("retail_trade.parquet", "cpi.parquet"):
+    for name in ("retail_trade.parquet", "cpi.parquet", "rates.parquet"):
         if not (silver / name).exists():
-            raise FileNotFoundError(f"Missing {silver / name}. Run `make cpi` and `make retail`.")
+            raise FileNotFoundError(
+                f"Missing {silver / name}. Run `make cpi`, `make rates` and `make retail`."
+            )
     (root / "gold").mkdir(parents=True, exist_ok=True)
     dbt(root, ["build"])
     return root / "gold" / "warehouse.duckdb"

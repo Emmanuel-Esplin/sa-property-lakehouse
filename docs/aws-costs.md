@@ -6,7 +6,7 @@ AWS's pricing pages before relying on them.
 ## What Phase 2 deploys
 
 | Resource | Why it is cheap | Expected monthly cost |
-|---|---|---|
+| --- | --- | --- |
 | S3 lake | A few MB of data | Under $0.01 |
 | 2 Lambda functions | A few runs a month, on arm64 | Under $0.01 |
 | EventBridge schedule | Weekly | Effectively $0 |
@@ -19,7 +19,7 @@ There is no VPC, NAT gateway or always-on compute, so almost nothing bills while
 ## Later phases
 
 | Phase | Service | Approximate price | Note |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | 3 | Glue Spark jobs | $0.44 per DPU-hour | Measured: 147 and 227 DPU-seconds, about 5 cents for both jobs. They run on demand |
 | 4 | Athena through dbt | $5 per TB scanned, at least 10 MB a query | A full build scans a few MB. Each query costs about $0.00005, and the workgroup stops any query at 1 GB |
 
@@ -28,7 +28,7 @@ There is no VPC, NAT gateway or always-on compute, so almost nothing bills while
 These are priced for production workloads and would use up the credits quickly:
 
 | Service | Approximate cost | Use instead |
-|---|---|---|
+| --- | --- | --- |
 | Managed Airflow (MWAA) | Over $300 a month, even idle | EventBridge, Step Functions or local Airflow |
 | NAT gateway | Over $30 a month, even idle | No VPC: Lambda reaches the internet by default |
 | Redshift, RDS, EMR clusters | Bill while running | Athena on S3 |
@@ -61,6 +61,9 @@ timeout is 48 hours. A Terraform test enforces these limits.
 
 Phase 4 ran the same day. dbt built and tested 35 models and tests on Athena, and the marts matched
 the local marts and the published figures. The Spark gold job was removed, because dbt replaced it.
+
+Phase 5 added SARB interest rates. The Lambda now fetches four series, and the Spark job used 174
+DPU-seconds, about 2 cents. All six marts, 2,205 rows, matched the local marts.
 
 ## Credit rules
 

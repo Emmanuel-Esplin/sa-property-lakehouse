@@ -8,3 +8,4 @@ sources:
     tables:
       - name: silver_retail_trade
       - name: silver_cpi
+      - name: silver_rates

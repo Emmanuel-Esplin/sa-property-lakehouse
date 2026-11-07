@@ -39,6 +39,7 @@ TABLE_2_ANNUAL_REAL = {2021: 6.2, 2022: 1.3, 2023: -1.5, 2024: 2.5, 2025: 3.7}
 
 
 def _connect() -> duckdb.DuckDBPyConnection:
+    # With a folder argument, check exported marts, for example from Athena. Otherwise, local.
     if len(sys.argv) > 1:
         connection = duckdb.connect()
         files = parquet_files(Path(sys.argv[1]) / "mart_tenant_growth")
@@ -49,6 +50,7 @@ def _connect() -> duckdb.DuckDBPyConnection:
 
 
 def main() -> int:
+    """Compare each published figure, print any that differ, and return 1 if any do."""
     failures = compared = 0
     with _connect() as connection:
         for column, table in (

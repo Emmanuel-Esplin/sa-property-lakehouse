@@ -7,10 +7,8 @@ from pathlib import Path
 import pandas as pd
 
 from ingestion.common.bronze import data_dir, write_bronze
-from ingestion.sarb.client import API, CPI_SERIES, START_DATE, fetch_series
-
-# SARB describes the series this way. If the wording changes, the measure may have changed too.
-EXPECTED_MEASURE = "12-Term % change"
+from ingestion.sarb.client import API, START_DATE, fetch_series
+from ingestion.sarb.series import CPI
 
 
 def parse_cpi(raw: bytes) -> pd.DataFrame:
@@ -20,8 +18,8 @@ def parse_cpi(raw: bytes) -> pd.DataFrame:
         raise ValueError("SARB returned no CPI observations")
 
     descriptions = {record["Description"] for record in records}
-    if not all(EXPECTED_MEASURE in description for description in descriptions):
-        raise ValueError(f"CPI series no longer described as {EXPECTED_MEASURE!r}: {descriptions}")
+    if not all(CPI.described_as in description for description in descriptions):
+        raise ValueError(f"CPI series no longer described as {CPI.described_as!r}: {descriptions}")
 
     frame = pd.DataFrame(
         {
@@ -44,15 +42,16 @@ def parse_cpi(raw: bytes) -> pd.DataFrame:
 
 
 def run(root: Path) -> pd.DataFrame:
+    """Fetch CPI into bronze, then write the validated silver file."""
     end = date.today().isoformat()
     # Parse what was just fetched: if a revision is reverted, its bytes match an older object.
     stored = write_bronze(
         root,
         "sarb",
-        "cpi",
-        "cpi.json",
-        fetch_series(CPI_SERIES, START_DATE, end),
-        origin=f"{API}/{CPI_SERIES}",
+        CPI.dataset,
+        f"{CPI.dataset}.json",
+        fetch_series(CPI.code, START_DATE, end),
+        origin=f"{API}/{CPI.code}",
     )
     frame = parse_cpi(stored.path.read_bytes())
     silver = root / "silver"
