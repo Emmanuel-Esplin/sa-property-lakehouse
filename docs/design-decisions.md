@@ -71,6 +71,28 @@ Parsing needs pandas, which would add a heavy package, and Phase 3 replaces it w
 test proves the handlers import no heavy dependencies. Bronze writes use `If-None-Match`, so a repeat
 delivery of the same file changes nothing.
 
+## Spark reuses the existing parser and contract
+
+The Glue job imports the same parsing and validation code as the local pipeline. One set of rules
+can't drift apart, and a change to the workbook stops both runs in the same way.
+
+## Iceberg tables in the Glue catalog
+
+Glue 5.0 supports Iceberg natively, so no extra JARs are needed. Delta would also have worked. Iceberg
+was chosen because Athena and dbt, planned for Phase 4, can query it through the same catalog. Each
+run replaces the tables, and Iceberg keeps earlier snapshots.
+
+## Spark SQL and DuckDB SQL exist side by side, for now
+
+Spark 3.5 has no `QUALIFY` or `arg_max`, so the marts are written twice. That is a real maintenance
+cost, so `make spark-parity` and a test compare every row. Phase 4 should keep one set of models.
+
+## Results are compared with the source, not just the other engine
+
+Two engines could share a mistake. So the marts built on AWS are compared with the local marts row
+by row, and separately with figures published by Stats SA. Ties in the seasonal index are the one
+thing neither engine defines, and the real data has none.
+
 ## One bucket, split by prefix
 
 Landing, bronze, silver and gold share a bucket. IAM still limits each Lambda to its own prefixes,

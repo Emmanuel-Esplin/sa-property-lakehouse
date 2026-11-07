@@ -1,0 +1,76 @@
+"""Compare exported Spark marts with the DuckDB marts, row by row.
+
+Usage: compare_gold.py <folder holding one folder of Parquet files per mart>
+"""
+
+import math
+import sys
+from pathlib import Path
+
+import duckdb
+
+from ingestion.common.bronze import data_dir
+
+KEYS = {
+    "mart_tenant_growth": ["month", "category"],
+    "mart_tenant_scorecard": ["category"],
+    "mart_segment_scorecard": ["segment"],
+    "mart_seasonality_monthly": ["category", "month_of_year"],
+    "mart_seasonality_summary": ["category"],
+}
+TOLERANCE = 1e-6
+
+
+def same(left, right) -> bool:
+    if left is None or right is None:
+        return left is None and right is None
+    if isinstance(left, bool) or isinstance(right, bool):
+        return left == right
+    if isinstance(left, int | float) and isinstance(right, int | float):
+        return math.isclose(left, right, abs_tol=TOLERANCE)
+    return left == right
+
+
+def compare_mart(connection, name: str, keys: list[str], folder: Path) -> list[str]:
+    order = ", ".join(keys)
+    expected = connection.execute(f"select * from warehouse.{name} order by {order}")
+    columns = sorted(column[0] for column in expected.description)
+    select = ", ".join(columns)
+    expected_rows = connection.execute(f"select {select} from warehouse.{name} order by {order}")
+    expected_rows = expected_rows.fetchall()
+    path = str(folder / name / "*.parquet")
+    actual = connection.execute(f"select * from read_parquet('{path}') limit 0").description
+    if sorted(column[0] for column in actual) != columns:
+        return [f"{name}: columns differ"]
+    actual_rows = connection.execute(
+        f"select {select} from read_parquet('{path}') order by {order}"
+    ).fetchall()
+    if len(actual_rows) != len(expected_rows):
+        return [f"{name}: {len(actual_rows)} rows, expected {len(expected_rows)}"]
+    differences = []
+    for expected_row, actual_row in zip(expected_rows, actual_rows, strict=True):
+        for column, left, right in zip(columns, expected_row, actual_row, strict=True):
+            if not same(left, right):
+                differences.append(f"{name}.{column}: {right} vs {left}")
+    return differences
+
+
+def main(folder: Path) -> int:
+    warehouse = data_dir() / "gold" / "warehouse.duckdb"
+    failures = compared = 0
+    with duckdb.connect() as connection:
+        connection.execute(f"attach '{warehouse}' as warehouse (read_only)")
+        for name, keys in KEYS.items():
+            differences = compare_mart(connection, name, keys, folder)
+            rows = connection.execute(f"select count(*) from warehouse.{name}").fetchone()[0]
+            compared += rows
+            failures += len(differences)
+            print(f"{name}: {rows} rows, {len(differences)} differences")
+            for difference in differences[:5]:
+                print(f"  {difference}")
+    print(f"Compared {compared} rows: {failures} differences")
+    return 1 if failures else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(Path(sys.argv[1])))

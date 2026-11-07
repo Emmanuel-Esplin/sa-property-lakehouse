@@ -16,10 +16,11 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "ruff>=0.6"]
+# PySpark matches Glue 5.0, which runs Spark 3.5.4.
+dev = ["pytest>=8", "ruff>=0.6", "pyspark==3.5.4"]
 
 [tool.setuptools.packages.find]
-include = ["ingestion*", "transform*"]
+include = ["ingestion*", "processing*", "transform*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
