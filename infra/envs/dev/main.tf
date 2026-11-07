@@ -3,7 +3,13 @@ data "aws_caller_identity" "current" {}
 locals {
   name       = "sa-property-lakehouse"
   bucket     = "${local.name}-${data.aws_caller_identity.current.account_id}"
-  lambda_src = "${path.module}/../../../ingestion"
+  repo_root  = "${path.module}/../../.."
+  lambda_src = "${local.repo_root}/ingestion"
+  glue_arguments = {
+    "--LAKE_BUCKET"      = local.bucket
+    "--datalake-formats" = "iceberg"
+    "--extra-py-files"   = "s3://${local.bucket}/${aws_s3_object.lakehouse_zip.key}"
+  }
   log_prefix = "/aws/lambda/${local.name}"
   # Everything the handlers import. Tests prove that excludes pandas and friends.
   lambda_files = [
@@ -148,4 +154,70 @@ output "retail_upload_command" {
 
 output "cpi_lambda" {
   value = module.cpi_lambda.name
+}
+
+# Glue writes to these groups. Created here so logs expire and a destroy removes them.
+resource "aws_cloudwatch_log_group" "glue" {
+  for_each          = toset(["output", "error", "logs-v2"])
+  name              = "/aws-glue/jobs/${each.value}"
+  retention_in_days = 14
+}
+
+# Everything the Glue jobs import, plus the SQL and seed they read.
+data "archive_file" "lakehouse" {
+  type        = "zip"
+  output_path = "${path.module}/build.nosync/lakehouse.zip"
+
+  dynamic "source" {
+    for_each = setunion(
+      fileset(local.repo_root, "ingestion/**/*.py"),
+      fileset(local.repo_root, "processing/**/*.py"),
+      fileset(local.repo_root, "processing/**/*.sql"),
+      fileset(local.repo_root, "transform/__init__.py"),
+      fileset(local.repo_root, "transform/seeds/*.csv"),
+    )
+    content {
+      content  = file("${local.repo_root}/${source.value}")
+      filename = source.value
+    }
+  }
+}
+
+resource "aws_s3_object" "lakehouse_zip" {
+  bucket = module.lake.bucket_id
+  key    = "scripts/lakehouse.zip"
+  source = data.archive_file.lakehouse.output_path
+  etag   = data.archive_file.lakehouse.output_md5
+}
+
+module "glue_bronze_to_silver" {
+  source           = "../../modules/glue_job"
+  job_name         = "${local.name}-bronze-to-silver"
+  bucket_id        = module.lake.bucket_id
+  bucket_arn       = module.lake.bucket_arn
+  script_path      = "${local.repo_root}/processing/bronze_to_silver/job.py"
+  read_prefixes    = ["bronze/"]
+  write_prefixes   = ["warehouse/"]
+  catalog_database = module.glue.database_name
+  default_arguments = merge(local.glue_arguments, {
+    "--additional-python-modules" = "openpyxl==3.1.5"
+  })
+  depends_on = [aws_cloudwatch_log_group.glue]
+}
+
+module "glue_silver_to_gold" {
+  source            = "../../modules/glue_job"
+  job_name          = "${local.name}-silver-to-gold"
+  bucket_id         = module.lake.bucket_id
+  bucket_arn        = module.lake.bucket_arn
+  script_path       = "${local.repo_root}/processing/silver_to_gold/job.py"
+  read_prefixes     = []
+  write_prefixes    = ["warehouse/", "exports/"]
+  catalog_database  = module.glue.database_name
+  default_arguments = local.glue_arguments
+  depends_on        = [aws_cloudwatch_log_group.glue]
+}
+
+output "glue_jobs" {
+  value = [module.glue_bronze_to_silver.job_name, module.glue_silver_to_gold.job_name]
 }

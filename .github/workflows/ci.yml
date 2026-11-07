@@ -39,6 +39,11 @@ jobs:
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
+      # Spark 3.5 runs on Java 8, 11 or 17.
+      - uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
+        with:
+          distribution: temurin
+          java-version: "17"
       - run: pip install -r requirements.lock
       - run: python -m ruff check .
       - run: python -m ruff format --check .

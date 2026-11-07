@@ -2,6 +2,8 @@
 
 The figures below are copied from Tables 2, 5 and 12 of that PDF. Stats SA revises history, so
 differences are expected once the warehouse is built from a later release.
+
+Usage: reconcile_august_2026.py [folder of exported marts, to check instead of the warehouse]
 """
 
 import sys
@@ -34,10 +36,20 @@ TABLE_12_NOMINAL = {
 TABLE_2_ANNUAL_REAL = {2021: 6.2, 2022: 1.3, 2023: -1.5, 2024: 2.5, 2025: 3.7}
 
 
+def _connect() -> duckdb.DuckDBPyConnection:
+    if len(sys.argv) > 1:
+        connection = duckdb.connect()
+        path = f"{sys.argv[1]}/mart_tenant_growth/*.parquet"
+        connection.execute(
+            f"create view mart_tenant_growth as select * from read_parquet('{path}')"
+        )
+        return connection
+    return duckdb.connect(str(data_dir() / "gold" / "warehouse.duckdb"), read_only=True)
+
+
 def main() -> int:
-    warehouse = data_dir() / "gold" / "warehouse.duckdb"
     failures = compared = 0
-    with duckdb.connect(str(warehouse), read_only=True) as connection:
+    with _connect() as connection:
         for column, table in (
             ("real_yoy_pct", TABLE_5_REAL),
             ("nominal_yoy_pct", TABLE_12_NOMINAL),
@@ -56,7 +68,7 @@ def main() -> int:
             mine = connection.execute(
                 """select 100 * (sum(real_rmillion) filter (year(month) = ?)
                                  / sum(real_rmillion) filter (year(month) = ?) - 1)
-                   from int_retail_monthly where category = 'total'""",
+                   from mart_tenant_growth where category = 'total'""",
                 [year, year - 1],
             ).fetchone()[0]
             compared += 1

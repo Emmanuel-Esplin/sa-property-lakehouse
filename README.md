@@ -4,10 +4,10 @@ A data platform that answers the questions a South African property owner asks a
 and its market. It has two domains: **tenant trading**, built from national retail sales, and
 **REIT market performance**, which is planned.
 
-> **Status: Phase 1 complete, Phase 2 verified on AWS.** Tenant trading runs locally on real data
-> through the August 2026 release. The AWS foundation was deployed to a dev account and tested with
-> real data. That account is temporary, so the environment may be torn down. Marts still build
-> locally: Spark, dbt and the REIT module are planned.
+> **Status: Phases 1 to 3 complete.** Tenant trading runs on real data through the August 2026
+> release, locally on DuckDB and on AWS with Spark and Iceberg. Both give identical results. The AWS
+> account is temporary, so the cloud environment may be torn down. dbt and the REIT module are
+> planned.
 
 ## What the data shows
 
@@ -40,7 +40,8 @@ general dealers and clothing, could flip with revisions.
 
 **Checked against the source.** All 101 growth rates compared with Stats SA's August 2026 release
 match at one decimal place: every category for six months at both price bases, plus five annual
-totals. Run `make reconcile` to repeat this.
+totals. The marts built on AWS pass the same check, and match the local marts on all 1,907 rows. Run
+`make reconcile`, `make spark-parity` or `make cloud-check` to repeat this.
 
 ## Questions
 
@@ -69,12 +70,15 @@ flowchart LR
     SV -->|DuckDB SQL + checks| G[(Gold: marts)]
 ```
 
+On AWS, the same flow runs with Lambda moving files into bronze on S3, and Spark on Glue building
+silver and gold as Iceberg tables registered in the Glue catalog.
+
 The main decisions are explained in [docs/design-decisions.md](docs/design-decisions.md), and every
 column is described in [docs/data-dictionary.md](docs/data-dictionary.md).
 
 ## Run it
 
-Requires Python 3.12 or later. `make install` uses `/opt/anaconda3/bin/python` by default; override
+Requires Python 3.12 or later, and Java 8, 11 or 17 for the Spark tests. `make install` uses `/opt/anaconda3/bin/python` by default; override
 it with `BOOTSTRAP_PYTHON=python3.12`.
 
 ```bash
@@ -101,6 +105,8 @@ and a `terraform.tfvars` copied from the example in `infra/envs/dev/`:
 ```bash
 make tf-plan      # review what would be created
 make tf-apply     # creates billable resources
+make glue-run     # runs both Spark jobs, which costs a few cents
+make cloud-check  # compares the AWS marts with local marts and published figures
 make tf-destroy   # removes everything, including the data in the bucket
 ```
 
@@ -112,7 +118,7 @@ The cost design and guardrails are in [docs/aws-costs.md](docs/aws-costs.md).
 |---|---|---|
 | 1 | Local ingestion and DuckDB marts for tenant trading | Done |
 | 2 | Terraform: S3, IAM, Glue; ingestion on Lambda | Done, verified on AWS |
-| 3 | PySpark bronze to silver to gold with Iceberg or Delta | Planned |
+| 3 | PySpark on Glue: bronze to silver to gold with Iceberg | Done, verified on AWS |
 | 4 | dbt marts for both modules | Planned |
 | 5 | REIT module: market prices and SARB rates | Planned |
 | 6 | Orchestration and Terraform plan in CI | Planned |

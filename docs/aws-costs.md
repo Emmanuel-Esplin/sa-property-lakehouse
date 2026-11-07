@@ -14,13 +14,13 @@ AWS's pricing pages before relying on them.
 | Glue database | Catalog entry only, no jobs or crawlers | Effectively $0 |
 | AWS Budget | Within the free allowance | $0 |
 
-There is no VPC, NAT gateway or always-on compute, so nothing bills while idle.
+There is no VPC, NAT gateway or always-on compute, so almost nothing bills while idle.
 
 ## Later phases
 
 | Phase | Service | Approximate price | Note |
 |---|---|---|---|
-| 3 | Glue Spark jobs | $0.44 per DPU-hour | Short runs on a small dataset cost cents. Run them on demand |
+| 3 | Glue Spark jobs | $0.44 per DPU-hour | Measured: 147 and 227 DPU-seconds, about 5 cents for both jobs. They run on demand |
 | 4 | Athena through dbt | $5 per TB scanned | A few MB of Parquet makes queries close to free |
 
 ## Services to avoid here
@@ -52,6 +52,12 @@ Deployed on 6 November 2026 and tested with real data:
 - Uploading the real workbook triggered the retail Lambda, and the bronze copy's checksum matched.
 - A renamed copy of the workbook added nothing to bronze. An HTML file saved as `.xlsx` was rejected.
 - Anonymous requests for a bronze object returned 403.
+
+Phase 3 ran on 7 November 2026 on the Free plan. Both Glue jobs succeeded, and their output matched
+the local marts and the published figures.
+
+Each job has 2 workers, no retries, one run at a time and a 10-minute timeout, because Glue's default
+timeout is 48 hours. A Terraform test enforces these limits.
 
 ## Credit rules
 

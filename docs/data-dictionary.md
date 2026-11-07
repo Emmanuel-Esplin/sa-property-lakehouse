@@ -21,7 +21,12 @@ One row per month, category, price basis and adjustment.
 | `month` | date | First day of the month |
 | `cpi_yoy_pct` | double | Headline CPI, all urban areas, year-on-year %. Published to one decimal |
 
+On AWS, these are the Iceberg tables `silver_retail_trade` and `silver_cpi` in the Glue database
+`sa_property_lakehouse`.
+
 ## Gold
+
+On AWS, each mart is an Iceberg table of the same name in the same database.
 
 ### `mart_tenant_growth`
 
