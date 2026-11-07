@@ -1,5 +1,5 @@
 # Usage: make install | make test | make lint | make all
-#        make cpi | make rates | make retail | make gold | make reconcile
+#        make cpi | make rates | make retail | make reits | make gold | make reconcile
 #        make tf-check | make tf-plan | make tf-apply | make tf-destroy
 #        make glue-run | make dbt-athena | make cloud-check
 PYTHON ?= .venv/bin/python
@@ -16,7 +16,7 @@ endif
 export TF_DATA_DIR := .terraform.nosync
 TF_DEV = terraform -chdir=infra/envs/dev
 
-.PHONY: install lint format test cpi rates retail gold reconcile all \
+.PHONY: install lint format test cpi rates retail reits gold reconcile all \
 	tf-check tf-plan tf-apply tf-destroy glue-run dbt-athena cloud-check
 
 install:
@@ -46,6 +46,10 @@ cpi:
 rates:
 	$(PYTHON) -m ingestion.sarb.rates
 
+# REIT prices and distributions from data/landing/market/. See docs/market-data-format.md.
+reits:
+	$(PYTHON) -m ingestion.market.reits
+
 retail:
 	$(PYTHON) -m ingestion.stats_sa.retail_trade
 
@@ -55,7 +59,7 @@ gold:
 reconcile:
 	$(PYTHON) scripts/reconcile_august_2026.py
 
-all: cpi rates retail gold
+all: cpi rates retail reits gold
 
 # No AWS credentials needed: formatting, validation and module tests with a mocked provider.
 tf-check:

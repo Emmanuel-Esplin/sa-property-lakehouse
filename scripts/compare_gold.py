@@ -18,6 +18,9 @@ KEYS = {
     "mart_seasonality_monthly": ["category", "month_of_year"],
     "mart_seasonality_summary": ["category"],
     "mart_rates_monthly": ["month"],
+    "mart_reit_monthly": ["month", "ticker"],
+    "mart_reit_returns": ["ticker"],
+    "mart_sector_rate_sensitivity": ["sector"],
 }
 TOLERANCE = 1e-6
 

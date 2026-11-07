@@ -20,13 +20,14 @@ prices rise faster than CPI can beat CPI while selling less.
 
 ## Module 1: REIT market performance (in progress)
 
-The interest-rate side is built. REIT prices and dividends still need a source that allows this use.
+The marts are built and tested. They fill once REIT price and distribution files are landed,
+in the format described in [market-data-format.md](market-data-format.md).
 
-| Question | Status | Answered by |
+| Question | Answered by | Method |
 | --- | --- | --- |
-| How have SA REIT dividend yields moved relative to prime and the long government bond? | Rates done, REIT data pending | `mart_rates_monthly` |
-| Which REIT sectors are most sensitive to repo rate changes? | Repo changes done, REIT data pending | `mart_rates_monthly.repo_change_pts` |
-| What are inflation-adjusted total returns per REIT over 3 and 5 years? | Pending | Needs prices and dividends |
+| How have SA REIT dividend yields moved relative to prime and the long government bond? | `mart_reit_monthly` | Trailing 12-month distributions over month-end price, against prime and the bond yield |
+| Which REIT sectors are most sensitive to repo rate changes? | `mart_sector_rate_sensitivity` | Each sector's average return in hike, cut and hold months, and the fitted return per rate point |
+| What are inflation-adjusted total returns per REIT over 3 and 5 years? | `mart_reit_returns` | Monthly total returns compounded and annualised, then CPI over the same years removed |
 
 The bond benchmark is SARB's average yield on government bonds of 10 years and longer, series
 `CMJD004A`. It is published daily from 2002, which single bonds such as the R2030 are not.

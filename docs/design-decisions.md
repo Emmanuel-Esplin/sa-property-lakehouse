@@ -80,6 +80,17 @@ ended, so no month is built from part of its data.
 Prime has been the policy rate plus 3.5 points on every day since August 2004. A dbt test checks
 this from 2005, as an independent check on the month-end logic.
 
+## REIT data uses the project's own file format
+
+No free source found so far allows automated downloads of JSE prices, so a person downloads them
+from a source they're allowed to use. The project defines a small CSV format rather than one
+source's export, so changing source means changing the export, not the pipeline. The checks are
+strict, because the usual mistakes, such as rand mixed with cents or a missing stretch of prices,
+produce returns that look plausible but are wrong.
+
+The files in the landing folder are the current data. Bronze keeps every version, but it can't say
+which is current, because a file put back unchanged isn't stored twice.
+
 ## Lambda only moves files
 
 Lambda copies source files into bronze using the standard library and the boto3 in its runtime.

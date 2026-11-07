@@ -17,3 +17,28 @@ models:
         data_tests: [not_null]
       - name: bond_10y_plus_yield_pct
         data_tests: [not_null]
+
+  - name: mart_reit_monthly
+    description: >
+      Month-end price, distributions, monthly price and total return, and trailing 12-month
+      distribution yield for each REIT, beside prime and the long bond yield.
+    data_tests:
+      - unique_combination:
+          columns: [month, ticker]
+      - no_month_gaps:
+          partition_by: [ticker]
+    columns:
+      - name: close_cents
+        data_tests: [not_null]
+
+  - name: mart_reit_returns
+    description: Annualised 3- and 5-year total returns per REIT, nominal and after CPI.
+    columns:
+      - name: ticker
+        data_tests: [not_null, unique]
+
+  - name: mart_sector_rate_sensitivity
+    description: Each sector's monthly total return in months with policy rate hikes, cuts and holds.
+    columns:
+      - name: sector
+        data_tests: [not_null, unique]
