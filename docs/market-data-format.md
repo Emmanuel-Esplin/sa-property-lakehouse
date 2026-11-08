@@ -6,6 +6,18 @@ automated downloads of JSE prices.
 
 Export from your source into the format below, then run `make reits` and `make gold`.
 
+## Where the data comes from
+
+| Data | Source | Notes |
+| --- | --- | --- |
+| Distributions | Each REIT's SENS announcements on the JSE, and the results packs on its website | Declarations give cents per share and the payment timetable |
+| Prices | A source you're allowed to use, such as your broker's export | REIT websites show prices on screen but don't offer downloads |
+
+**Keep REIT data out of the repo.** Some REIT websites allow their data only for personal,
+non-commercial use and forbid redistributing it. For example, Vukile's terms say: "You may not copy,
+distribute or redistribute the data". The landing, bronze and silver folders are git-ignored, so the
+data stays on your machine. Publish findings as summaries, not tables of raw prices.
+
 ## Where files go
 
 | Kind | Folder |
@@ -61,9 +73,9 @@ If anything is refused, silver is left as it was.
 
 ## Adding a REIT
 
-Add a row to `transform/seeds/reits.csv` with its ticker, name and main sector: `retail`,
-`logistics`, `office`, `diversified` or `specialist`. The sectors in the seed are this project's
-judgement, so change them if you see a REIT differently. Check that each ticker matches the one your
+Add a row to `transform/seeds/reits.csv` with its ticker, name and main sector: `office`,
+`industrial`, `retail` or `logistics`. A REIT with several kinds of property is placed in the
+sector of its largest exposure. That is a judgement, so change it if you see the REIT differently. Check that each ticker matches the one your
 source uses.
 
 ## What the marts calculate
