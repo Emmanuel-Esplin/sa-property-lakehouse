@@ -57,13 +57,7 @@ def dbt(root: Path, command: list[str], target: str = "local") -> str:
 def build(root: Path) -> Path:
     """Seed, build and test every model locally. Returns the warehouse path."""
     silver = root / "silver"
-    inputs = (
-        "retail_trade.parquet",
-        "cpi.parquet",
-        "rates.parquet",
-        "reit_prices.parquet",
-        "reit_distributions.parquet",
-    )
+    inputs = ("retail_trade.parquet", "cpi.parquet", "rates.parquet")
     for name in inputs:
         if not (silver / name).exists():
             raise FileNotFoundError(f"Missing {silver / name}. Run `make all`.")

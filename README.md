@@ -1,14 +1,13 @@
 # SA Property Lakehouse
 
 A data platform that answers the questions a South African property owner asks about its tenants
-and its market. It has two domains: **tenant trading**, built from national retail sales, and
-**REIT market performance**, which is planned.
+and its market. It covers **tenant trading**, built from national retail sales, and the
+**interest rates** that set the cost of property finance.
 
 > **Status: Phases 1 to 4 complete.** Tenant trading runs on real data through the August 2026
 > release. One dbt project builds the marts locally on DuckDB and on AWS on Athena, from silver
 > tables that Spark writes as Iceberg. Both give identical results. The AWS account is temporary,
-> so the cloud environment may be torn down. The REIT module's rates are live. Its REIT marts are
-> built and tested, and fill once price and distribution files are landed.
+> so the cloud environment may be torn down. SARB interest rates run on both as well.
 
 ## What the data shows
 
@@ -46,7 +45,7 @@ rows. Run `make reconcile` or `make cloud-check` to repeat this.
 
 ## Questions
 
-Module 2, tenant trading, comes first:
+Tenant trading:
 
 1. How has retail turnover grown over the last 24 months, by retailer type?
 2. How much of that growth is real, and how much is price?
@@ -92,7 +91,6 @@ make install
 make test
 make cpi       # fetch CPI from SARB
 make rates     # fetch the policy rate, prime and bond yield from SARB
-make reits     # check REIT price and distribution files you've landed
 ```
 
 Retail data takes one manual step, because Stats SA's site blocks scripted clients:
@@ -102,9 +100,6 @@ Retail data takes one manual step, because Stats SA's site blocks scripted clien
 2. Put the Excel workbook (`.xlsx`) anywhere under `data/landing/stats_sa/retail_trade/`. Keep only
    the latest one there: other formats are ignored, and two workbooks stop the run.
 3. Run `make retail`, then `make gold`, which builds and tests the dbt models.
-
-REIT prices and distributions are also downloaded by hand, as CSV files in a fixed format. See
-[docs/market-data-format.md](docs/market-data-format.md).
 
 Marts are written to `data/gold/warehouse.duckdb`.
 
@@ -132,7 +127,7 @@ The cost design and guardrails are in [docs/aws-costs.md](docs/aws-costs.md).
 | 2 | Terraform: S3, IAM, Glue; ingestion on Lambda | Done, verified on AWS |
 | 3 | PySpark on Glue: bronze to silver with Iceberg | Done, verified on AWS |
 | 4 | dbt marts on DuckDB and Athena, with data tests | Done for tenant trading |
-| 5 | REIT module: SARB rates, REIT prices and dividends, and their marts | Built and tested locally; REIT data and AWS pending |
+| 5 | SARB interest rates and their mart | Done, verified on AWS. REIT prices were dropped: no free source allows this use |
 | 6 | Orchestration and Terraform plan in CI | Planned |
 | 7 | Dashboard and written findings | Planned |
 

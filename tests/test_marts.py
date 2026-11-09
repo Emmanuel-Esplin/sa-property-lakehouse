@@ -5,15 +5,13 @@ import pandas as pd
 import pytest
 
 from ingestion.stats_sa.retail_trade import write_silver
-from tests.conftest import write_market_silver
 from transform.run import DbtFailed, build
 
 
-def build_gold(root, retail, cpi, rates, reit_prices=None, reit_distributions=None):
+def build_gold(root, retail, cpi, rates):
     write_silver(root, retail)
     cpi.to_parquet(root / "silver" / "cpi.parquet", index=False)
     rates.to_parquet(root / "silver" / "rates.parquet", index=False)
-    write_market_silver(root, reit_prices, reit_distributions)
     return build(root)
 
 
@@ -101,7 +99,6 @@ def write_unchecked_silver(root, retail, cpi, rates):
     retail.assign(month=retail["month"].dt.date).to_parquet(silver / "retail_trade.parquet")
     cpi.to_parquet(silver / "cpi.parquet", index=False)
     rates.to_parquet(silver / "rates.parquet", index=False)
-    write_market_silver(root)
 
 
 def test_dbt_catches_a_month_gap(tmp_path, retail, cpi, rates):

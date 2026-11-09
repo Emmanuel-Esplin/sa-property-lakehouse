@@ -1,0 +1,19 @@
+version: 2
+
+models:
+  - name: mart_rates_monthly
+    description: >
+      Month-end policy (repo) and prime rates, the monthly average long government bond yield,
+      repo changes and an approximate real bond yield. The latest, incomplete month is excluded.
+    data_tests:
+      - no_month_gaps:
+          partition_by: []
+    columns:
+      - name: month
+        data_tests: [not_null, unique]
+      - name: repo_rate_pct
+        data_tests: [not_null]
+      - name: prime_rate_pct
+        data_tests: [not_null]
+      - name: bond_10y_plus_yield_pct
+        data_tests: [not_null]

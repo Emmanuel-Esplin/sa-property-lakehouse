@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "sa-property-lakehouse"
 version = "0.1.0"
-description = "South African property lakehouse: tenant trading and REIT market performance"
+description = "South African property lakehouse: tenant trading and interest rates"
 requires-python = ">=3.12"
 dependencies = [
   # DuckDB 2.0.0 returned wrong results after a bulk insert in nyc-taxi-pipeline.
