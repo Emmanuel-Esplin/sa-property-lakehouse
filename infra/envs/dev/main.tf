@@ -104,46 +104,11 @@ module "retail_lambda" {
   environment    = { LAKE_BUCKET = module.lake.bucket_name }
 }
 
-# CPI is monthly and rates change a few times a year. An unchanged response writes nothing, and
-# daily bond yields only feed monthly averages, so a weekly fetch is plenty.
-resource "aws_cloudwatch_event_rule" "sarb" {
-  name                = "${local.name}-sarb-weekly"
-  schedule_expression = "cron(0 6 ? * MON *)"
-}
-
-resource "aws_cloudwatch_event_target" "sarb" {
-  rule = aws_cloudwatch_event_rule.sarb.name
-  arn  = module.sarb_lambda.arn
-}
-
-resource "aws_lambda_permission" "sarb_schedule" {
-  statement_id  = "AllowSchedule"
-  action        = "lambda:InvokeFunction"
-  function_name = module.sarb_lambda.name
-  principal     = "events.amazonaws.com"
-  source_arn    = aws_cloudwatch_event_rule.sarb.arn
-}
-
-resource "aws_lambda_permission" "retail_upload" {
-  statement_id   = "AllowS3Upload"
-  action         = "lambda:InvokeFunction"
-  function_name  = module.retail_lambda.name
-  principal      = "s3.amazonaws.com"
-  source_arn     = module.lake.bucket_arn
-  source_account = data.aws_caller_identity.current.account_id
-}
-
-# Only landing/ triggers this and the handler only writes to bronze/, so it cannot loop.
+# The pipeline module's EventBridge rule picks out uploads to landing/stats_sa/. Only that prefix
+# starts a run, and the run writes only outside landing/, so it cannot trigger itself.
 resource "aws_s3_bucket_notification" "landing" {
-  bucket     = module.lake.bucket_id
-  depends_on = [aws_lambda_permission.retail_upload]
-
-  lambda_function {
-    lambda_function_arn = module.retail_lambda.arn
-    events              = ["s3:ObjectCreated:*"]
-    filter_prefix       = "landing/stats_sa/"
-    filter_suffix       = ".xlsx"
-  }
+  bucket      = module.lake.bucket_id
+  eventbridge = true
 }
 
 output "lake_bucket" {
@@ -233,8 +198,73 @@ resource "aws_athena_workgroup" "lakehouse" {
   }
 }
 
+# --- Orchestration ---------------------------------------------------------------------------
+
+# dbt and only what it imports: transform/ and the data_dir helper.
+data "archive_file" "dbt" {
+  type        = "zip"
+  output_path = "${path.module}/build.nosync/dbt.zip"
+
+  dynamic "source" {
+    for_each = setunion(
+      fileset(local.repo_root, "transform/*.{py,yml,txt}"),
+      fileset(local.repo_root, "transform/{models,macros,seeds,tests}/**"),
+      ["ingestion/__init__.py", "ingestion/common/__init__.py", "ingestion/common/bronze.py"],
+    )
+    content {
+      content  = file("${local.repo_root}/${source.value}")
+      filename = source.value
+    }
+  }
+}
+
+resource "aws_s3_object" "dbt_zip" {
+  bucket = module.lake.bucket_id
+  key    = "scripts/dbt.zip"
+  source = data.archive_file.dbt.output_path
+  etag   = data.archive_file.dbt.output_md5
+}
+
+module "dbt_runner" {
+  source       = "../../modules/dbt_runner"
+  project_name = "${local.name}-dbt"
+  bucket_id    = module.lake.bucket_id
+  bucket_arn   = module.lake.bucket_arn
+  source_key   = aws_s3_object.dbt_zip.key
+  workgroup    = aws_athena_workgroup.lakehouse.name
+  databases    = [module.glue.database_name, module.glue_marts.database_name]
+}
+
+module "pipeline" {
+  source            = "../../modules/pipeline"
+  name              = local.name
+  sarb_lambda_arn   = module.sarb_lambda.arn
+  retail_lambda_arn = module.retail_lambda.arn
+  glue_job_name     = module.glue_bronze_to_silver.job_name
+  dbt_project_name  = module.dbt_runner.project_name
+  dbt_project_arn   = module.dbt_runner.project_arn
+  bucket_name       = module.lake.bucket_name
+  alert_email       = var.alert_email
+}
+
+# The weekly SARB rule now starts the pipeline instead of the Lambda. Moving it keeps the rule
+# rather than deleting and recreating one with the same name.
+moved {
+  from = aws_cloudwatch_event_rule.sarb
+  to   = module.pipeline.aws_cloudwatch_event_rule.weekly
+}
+
+moved {
+  from = aws_cloudwatch_event_target.sarb
+  to   = module.pipeline.aws_cloudwatch_event_target.weekly
+}
+
 output "glue_jobs" {
   value = [module.glue_bronze_to_silver.job_name]
+}
+
+output "state_machine" {
+  value = module.pipeline.state_machine_arn
 }
 
 output "athena_workgroup" {

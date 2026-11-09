@@ -1,7 +1,7 @@
 # Usage: make install | make test | make lint | make all
 #        make cpi | make rates | make retail | make gold | make reconcile
 #        make tf-check | make tf-plan | make tf-apply | make tf-destroy
-#        make glue-run | make dbt-athena | make cloud-check
+#        make glue-run | make dbt-athena | make pipeline-run | make cloud-check
 PYTHON ?= .venv/bin/python
 BOOTSTRAP_PYTHON ?= /opt/anaconda3/bin/python
 # macOS can hide the editable-install .pth under iCloud-synced Desktop, so set this explicitly.
@@ -17,7 +17,7 @@ export TF_DATA_DIR := .terraform.nosync
 TF_DEV = terraform -chdir=infra/envs/dev
 
 .PHONY: install lint format test cpi rates retail gold reconcile all \
-	tf-check tf-plan tf-apply tf-destroy glue-run dbt-athena cloud-check
+	tf-check tf-plan tf-apply tf-destroy glue-run dbt-athena pipeline-run cloud-check
 
 install:
 	# .nosync keeps these out of iCloud, which offloads files and makes reads hang.
@@ -63,7 +63,7 @@ tf-check:
 	$(TF_DEV) init -input=false -upgrade=false >/dev/null
 	$(TF_DEV) validate
 	$(TF_DEV) test
-	for m in budget s3_lake glue_job; do \
+	for m in budget s3_lake glue_job pipeline; do \
 		terraform -chdir=infra/modules/$$m init -input=false >/dev/null && \
 		terraform -chdir=infra/modules/$$m test || exit 1; \
 	done
@@ -87,6 +87,10 @@ glue-run:
 # dbt on Athena: silver to gold, with every data test. Costs under a cent.
 dbt-athena:
 	LAKE_BUCKET=$(LAKE_BUCKET) $(PYTHON) -m transform.run --target athena
+
+# The whole pipeline on AWS through Step Functions: SARB, Spark, then dbt. A few cents.
+pipeline-run:
+	bash scripts/run_pipeline.sh $$(terraform -chdir=infra/envs/dev output -raw state_machine)
 
 # Checks the marts from the last `make dbt-athena` against the local marts and Stats SA's
 # published figures.

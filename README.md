@@ -4,7 +4,7 @@ A data platform that answers the questions a South African property owner asks a
 and its market. It covers **tenant trading**, built from national retail sales, and the
 **interest rates** that set the cost of property finance.
 
-> **Status: Phases 1 to 4 complete.** Tenant trading runs on real data through the August 2026
+> **Status: Phases 1 to 6 complete.** Tenant trading runs on real data through the August 2026
 > release. One dbt project builds the marts locally on DuckDB and on AWS on Athena, from silver
 > tables that Spark writes as Iceberg. Both give identical results. The AWS account is temporary,
 > so the cloud environment may be torn down. SARB interest rates run on both as well.
@@ -73,6 +73,7 @@ flowchart LR
 | Step | Locally | On AWS |
 | --- | --- | --- |
 | Into bronze | Python, from the landing folder | Lambda, on upload or weekly schedule |
+| Orchestration | `make` targets, run in order | Step Functions: ingest, Spark, then dbt in CodeBuild. Emails on failure |
 | Bronze to silver | Python parser and contract | The same code, in Spark on Glue, writing Iceberg |
 | Silver to gold | dbt on DuckDB | The same dbt models on Athena, writing Iceberg |
 
@@ -113,6 +114,7 @@ make tf-plan      # review what would be created
 make tf-apply     # creates billable resources
 make glue-run     # Spark on Glue: bronze to silver, a few cents
 make dbt-athena   # dbt on Athena: silver to gold, under a cent
+make pipeline-run # the whole pipeline through Step Functions, a few cents
 make cloud-check  # compares the Athena marts with local marts and published figures
 make tf-destroy   # removes everything, including the data in the bucket
 ```
@@ -128,7 +130,7 @@ The cost design and guardrails are in [docs/aws-costs.md](docs/aws-costs.md).
 | 3 | PySpark on Glue: bronze to silver with Iceberg | Done, verified on AWS |
 | 4 | dbt marts on DuckDB and Athena, with data tests | Done for tenant trading |
 | 5 | SARB interest rates and their mart | Done, verified on AWS. REIT prices were dropped: no free source allows this use |
-| 6 | Orchestration and Terraform plan in CI | Planned |
+| 6 | Orchestration with Step Functions, triggered by schedule and upload | Done, verified on AWS |
 | 7 | Dashboard and written findings | Planned |
 
 ## Data sources

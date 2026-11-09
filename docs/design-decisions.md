@@ -87,6 +87,24 @@ Parsing needs pandas, which would add a heavy package, and Phase 3 replaces it w
 test proves the handlers import no heavy dependencies. Bronze writes use `If-None-Match`, so a repeat
 delivery of the same file changes nothing.
 
+## Step Functions runs the pipeline on AWS
+
+One workflow runs ingestion, then Spark, then dbt, and each step starts only when the one before
+succeeded. The weekly SARB schedule and a workbook upload both start it through EventBridge, so
+neither can leave silver or the marts behind bronze. Any failed step, including a failed dbt test,
+sends one email naming the step and the error.
+
+If ingestion stored nothing new, the run stops there. Bronze stores each file once, so that is the
+signal that the lake is already up to date, and an unchanged week costs nothing. `make pipeline-run`
+forces a full run.
+
+dbt runs in CodeBuild. dbt and its Athena adapter are too large for a Lambda package without a
+container image, and CodeBuild bills by the minute only while a build runs. Managed Airflow would
+cost over $300 a month for one weekly job.
+
+Two runs can overlap, for example an upload during the weekly run. The Glue job allows one run at a
+time, so the second run's Spark step retries until the first has finished.
+
 ## Spark reuses the existing parser and contract
 
 The Glue job imports the same parsing and validation code as the local pipeline. One set of rules
@@ -123,7 +141,7 @@ thing neither engine defines, and the real data has none.
 ## One bucket, split by prefix
 
 Landing, bronze, silver and gold share a bucket. IAM still limits each Lambda to its own prefixes,
-and one bucket keeps the S3 trigger and the teardown simple.
+and one bucket keeps the upload trigger and the teardown simple.
 
 ## Local first, DuckDB pinned below 2
 
