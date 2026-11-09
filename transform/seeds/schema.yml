@@ -11,16 +11,3 @@ seeds:
           - accepted_values:
               arguments:
                 values: [defensive, discretionary, mixed, total]
-
-  - name: reits
-    description: >
-      The JSE REITs the project tracks, with this project's judgement of each one's main sector.
-      A landed file with a ticker that isn't listed here is refused.
-    columns:
-      - name: ticker
-        data_tests: [not_null, unique]
-      - name: sector
-        data_tests:
-          - accepted_values:
-              arguments:
-                values: [office, industrial, retail, logistics]

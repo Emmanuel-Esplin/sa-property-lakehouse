@@ -1,4 +1,4 @@
--- Monthly interest rates, the benchmark for REIT dividend yields.
+-- Monthly interest rates: the cost of property finance and the yield it competes with.
 -- Policy and prime rates move in steps, so the month-end value is the rate in force.
 -- The bond yield moves every day, so it is averaged over the month.
 with daily as (

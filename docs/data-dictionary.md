@@ -31,21 +31,8 @@ One row per business day and series, as SARB publishes them.
 | `series` | string | `repo_rate` (SARB policy rate), `prime_rate`, or `govt_bond_10y_plus` |
 | `value_pct` | double | The rate or yield, in % |
 
-### `reit_prices.parquet` and `reit_distributions.parquet`
-
-From the CSV files described in [market-data-format.md](market-data-format.md). Empty until files
-are landed.
-
-| Column | Type | Description |
-| --- | --- | --- |
-| `price_date` | date | A trading day (prices) |
-| `ex_date` | date | The ex-date (distributions) |
-| `ticker` | string | JSE ticker, listed in `transform/seeds/reits.csv` |
-| `close_cents` | double | Closing price in cents (prices) |
-| `amount_cents` | double | Distribution per share in cents (distributions) |
-
 On AWS, these are the Iceberg tables `silver_retail_trade`, `silver_cpi` and `silver_rates` in the
-Glue database `sa_property_lakehouse`. The REIT files aren't on AWS yet.
+Glue database `sa_property_lakehouse`.
 
 ## Gold
 
@@ -122,37 +109,3 @@ One row per month, from the first month every rate series covers to the last mon
 | `repo_change_pts` | Change in the policy rate from the previous month end, in percentage points |
 | `cpi_yoy_pct` | Headline CPI for the month. NULL until SARB publishes it |
 | `real_bond_yield_pct` | Bond yield minus CPI. It uses past inflation, not expected inflation, so it's approximate |
-
-### `mart_reit_monthly`
-
-One row per REIT and month.
-
-| Column | Description |
-| --- | --- |
-| `month`, `ticker`, `name`, `sector` | Keys and the REIT's details from the seed |
-| `close_cents`, `distribution_cents` | Month-end price, and distributions that went ex in the month |
-| `price_return_pct`, `total_return_pct` | Change from the previous month end, without and with distributions |
-| `distribution_yield_pct` | Last 12 months of distributions over the month-end price. NULL until 12 months exist |
-| `prime_rate_pct`, `bond_10y_plus_yield_pct`, `repo_change_pts` | From `mart_rates_monthly` |
-| `yield_spread_to_bond_pts`, `yield_spread_to_prime_pts` | Distribution yield minus each rate |
-
-### `mart_reit_returns`
-
-One row per REIT, as at the latest month that both prices and CPI cover.
-
-| Column | Description |
-| --- | --- |
-| `ticker`, `name`, `sector`, `as_at_month` | Keys and the end of the measurement window |
-| `annual_return_3y_pct`, `annual_return_5y_pct` | Annualised total return. NULL unless every month in the window has one |
-| `real_annual_return_3y_pct`, `real_annual_return_5y_pct` | The same, after CPI over the same years |
-
-### `mart_sector_rate_sensitivity`
-
-One row per sector. A sector's monthly return is the equal-weighted average of its REITs.
-
-| Column | Description |
-| --- | --- |
-| `sector` | From the seed |
-| `months`, `hike_months`, `cut_months` | Months with a return, and how many had a policy rate rise or fall |
-| `avg_return_hike_months_pct`, `avg_return_cut_months_pct`, `avg_return_hold_months_pct` | Average monthly total return in each kind of month |
-| `return_per_rate_point_pct` | Fitted change in a month's return per 1-point policy rate change |
