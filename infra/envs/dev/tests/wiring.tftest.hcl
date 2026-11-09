@@ -24,8 +24,13 @@ run "dev_environment_fits_together" {
   }
 
   assert {
-    condition     = one(aws_s3_bucket_notification.landing.lambda_function).filter_prefix == "landing/stats_sa/"
-    error_message = "Only landing may trigger the retail Lambda, or it could trigger itself."
+    condition     = aws_s3_bucket_notification.landing.eventbridge && length(aws_s3_bucket_notification.landing.lambda_function) == 0
+    error_message = "Uploads must reach the pipeline through EventBridge, not invoke the Lambda directly."
+  }
+
+  assert {
+    condition     = module.dbt_runner.project_name == "sa-property-lakehouse-dbt"
+    error_message = "The pipeline must run dbt in the project's CodeBuild project."
   }
 
   assert {

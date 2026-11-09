@@ -1,0 +1,12 @@
+version: 0.2
+
+# Builds and tests the marts on Athena: the same command as `make dbt-athena`.
+phases:
+  install:
+    runtime-versions:
+      python: "3.12"
+    commands:
+      - pip install --quiet --no-cache-dir -r transform/requirements-athena.txt
+  build:
+    commands:
+      - python -m transform.run --target athena

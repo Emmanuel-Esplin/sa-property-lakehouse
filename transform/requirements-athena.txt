@@ -1,0 +1,3 @@
+# What CodeBuild installs to run dbt on Athena. Versions match requirements.lock; a test checks.
+dbt-core==1.12.6
+dbt-athena==1.11.1

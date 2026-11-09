@@ -22,6 +22,7 @@ There is no VPC, NAT gateway or always-on compute, so almost nothing bills while
 | --- | --- | --- | --- |
 | 3 | Glue Spark jobs | $0.44 per DPU-hour | Measured: 147 and 227 DPU-seconds, about 5 cents for both jobs. They run on demand |
 | 4 | Athena through dbt | $5 per TB scanned, at least 10 MB a query | A full build scans a few MB. Each query costs about $0.00005, and the workgroup stops any query at 1 GB |
+| 6 | Step Functions, CodeBuild, SNS | $0.025 per 1,000 state transitions; about $0.005 a build minute | A run is about 10 transitions and a 2-minute dbt build. A week with nothing new stops after ingestion |
 
 ## Services to avoid here
 
@@ -41,8 +42,8 @@ These are priced for production workloads and would use up the credits quickly:
   `make tf-destroy` when the project isn't in active use.
 - **Teardown is complete.** `force_destroy` lets `make tf-destroy` empty the bucket too, including
   bronze. Stats SA workbooks are also kept locally. Older SARB responses exist only in bronze.
-- **State is local for now,** because only one person deploys this. It moves to S3 in Phase 6, when
-  CI needs to run plans.
+- **State is local,** because only one person deploys this. CI checks the Terraform with a mocked
+  provider, so it needs no AWS credentials.
 
 ## Verified on AWS
 
@@ -64,6 +65,12 @@ the local marts and the published figures. The Spark gold job was removed, becau
 
 Phase 5 added SARB interest rates. The Lambda now fetches four series, and the Spark job used 174
 DPU-seconds, about 2 cents. All six marts, 2,205 rows, matched the local marts.
+
+Phase 6 ran on 9 November 2026. A forced run took under 5 minutes: Spark used 267 DPU-seconds,
+about 3 cents, and the dbt build took under 2 minutes, about 1 cent. The marts matched the local
+marts on all 2,205 rows and all 101 published figures. A weekly run and a re-uploaded workbook
+with nothing new both stopped after ingestion. The first run failed on a missing Glue permission
+for dbt, and the failure email arrived.
 
 ## Credit rules
 

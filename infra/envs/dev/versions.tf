@@ -12,7 +12,7 @@ terraform {
     }
   }
 
-  # Local, in a .nosync folder, until CI needs to plan in Phase 6. See docs/aws-costs.md.
+  # Local, in a .nosync folder: one person deploys, and CI tests with a mocked provider.
   backend "local" {
     path = "state.nosync/dev.tfstate"
   }
