@@ -10,7 +10,7 @@ Export from your source into the format below, then run `make reits` and `make g
 
 | Data | Source | Notes |
 | --- | --- | --- |
-| Distributions | Each REIT's SENS announcements on the JSE, and the results packs on its website | Declarations give cents per share and the payment timetable |
+| Distributions | SENS announcements on the [JSE website](https://www.jse.co.za), the official source | Each declaration gives cents per share and the payment timetable. See below for which figures to copy |
 | Prices | A source you're allowed to use, such as your broker's export | REIT websites show prices on screen but don't offer downloads |
 
 **Keep REIT data out of the repo.** Some REIT websites allow their data only for personal,
@@ -54,6 +54,22 @@ VKE,2026-03-18,61.5
 | `ticker` | A JSE ticker listed in `transform/seeds/reits.csv` |
 | `ex_date` | The first day the share trades without the distribution, written `YYYY-MM-DD` |
 | `amount_cents` | The distribution per share **in cents** |
+
+### Reading a SENS distribution announcement
+
+Search SENS on the JSE website for the REIT's share code, and open its dividend or distribution
+announcement. Copy two figures:
+
+| Announcement says | CSV column | Why |
+| --- | --- | --- |
+| Shares commence trading "ex" the dividend | `ex_date` | The share price drops on this day, so the return must count the distribution here. It is the business day after the last day to trade |
+| Gross dividend or distribution per share, in cents | `amount_cents` | Use the gross amount. Withholding tax depends on who holds the share, so it isn't part of the REIT's return |
+
+- **Use the finalisation announcement** if there is one. A results announcement can give an
+  expected amount that the finalisation later confirms or changes.
+- **Use the cash amount** if shareholders can choose shares instead of cash.
+- **Copy the figure exactly.** SENS amounts often have five decimals, such as `52.07420`. Rounding
+  them changes the return slightly.
 
 ## What gets a file refused
 
