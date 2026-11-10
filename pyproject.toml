@@ -24,7 +24,7 @@ dev = ["pytest>=8", "ruff>=0.6", "pyspark==3.5.4"]
 cloud = ["dbt-athena>=1.9", "botocore[crt]"]
 
 [tool.setuptools.packages.find]
-include = ["ingestion*", "processing*", "transform*"]
+include = ["ingestion*", "processing*", "transform*", "dashboard*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

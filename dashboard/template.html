@@ -1,0 +1,658 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SA Retail Tenants</title>
+<meta name="description" content="South African retail sales by retailer type against CPI, with seasonality and interest rates, from Stats SA and SARB.">
+<style>
+  /* Tokens: the reference data-viz palette. Dark values are their own validated steps. */
+  :root {
+    color-scheme: light;
+    --page: #f9f9f7;
+    --surface: #fcfcfb;
+    --ink: #0b0b0b;
+    --ink-2: #52514e;
+    --muted: #6f6e69;
+    --grid: #e1e0d9;
+    --axis: #c3c2b7;
+    --ring: rgba(11, 11, 11, 0.10);
+    --series-1: #2a78d6;
+    --series-2: #eb6834;
+    --series-3: #1baf7a;
+    --div-high: #184f95;
+    --div-mid: #f0efec;
+    --div-low: #c23a39;
+    --good: #006300;
+    --tooltip-bg: #ffffff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --page: #0d0d0d;
+      --surface: #1a1a19;
+      --ink: #f0efec;
+      --ink-2: #c3c2b7;
+      --muted: #a3a29b;
+      --grid: #2c2c2a;
+      --axis: #383835;
+      --ring: rgba(255, 255, 255, 0.10);
+      --series-1: #3987e5;
+      --series-2: #d95926;
+      --series-3: #199e70;
+      --div-high: #6da7ec;
+      --div-mid: #383835;
+      --div-low: #e66767;
+      --good: #0ca30c;
+      --tooltip-bg: #262624;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --page: #0d0d0d;
+    --surface: #1a1a19;
+    --ink: #f0efec;
+    --ink-2: #c3c2b7;
+    --muted: #a3a29b;
+    --grid: #2c2c2a;
+    --axis: #383835;
+    --ring: rgba(255, 255, 255, 0.10);
+    --series-1: #3987e5;
+    --series-2: #d95926;
+    --series-3: #199e70;
+    --div-high: #6da7ec;
+    --div-mid: #383835;
+    --div-low: #e66767;
+    --good: #0ca30c;
+    --tooltip-bg: #262624;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--page);
+    color: var(--ink);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  main { max-width: 960px; margin: 0 auto; padding: 32px 16px 48px; }
+  header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+  h1 { font-size: 26px; line-height: 1.2; margin: 0 0 6px; font-weight: 650; }
+  h2 { font-size: 18px; margin: 0 0 4px; font-weight: 620; }
+  p { margin: 0; }
+  .lede { color: var(--ink-2); max-width: 62ch; }
+  .muted { color: var(--muted); font-size: 13px; }
+  button {
+    font: inherit; font-size: 13px; color: var(--ink-2); background: var(--surface);
+    border: 1px solid var(--ring); border-radius: 8px; padding: 6px 10px; cursor: pointer;
+  }
+  button[aria-pressed="true"] { color: var(--ink); border-color: var(--ink-2); font-weight: 600; }
+  button:focus-visible, select:focus-visible, summary:focus-visible { outline: 2px solid var(--series-1); outline-offset: 2px; }
+
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin: 24px 0 8px; }
+  .tile { background: var(--surface); border: 1px solid var(--ring); border-radius: 12px; padding: 14px 16px; }
+  .tile .label { color: var(--ink-2); font-size: 13px; }
+  .tile .value { font-size: 30px; font-weight: 600; line-height: 1.2; margin: 4px 0 2px; }
+  .tile .note { color: var(--muted); font-size: 12px; }
+
+  section.card { background: var(--surface); border: 1px solid var(--ring); border-radius: 12px; padding: 20px; margin-top: 16px; }
+  .card .lede { margin-bottom: 12px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 16px; margin: 4px 0 8px; font-size: 13px; color: var(--ink-2); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .swatch { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+  .swatch.line { height: 2px; border-radius: 1px; width: 14px; }
+  .chart { width: 100%; }
+  .chart svg { display: block; overflow: visible; }
+  .chart text { fill: var(--ink-2); font-size: 12px; }
+  .chart .tick { fill: var(--muted); font-variant-numeric: tabular-nums; }
+
+  .filters {
+    position: sticky; top: 0; z-index: 2; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px;
+    margin-top: 24px; padding: 10px 0; background: var(--page);
+  }
+  .filters label { font-size: 13px; color: var(--ink-2); display: inline-flex; align-items: center; gap: 8px; }
+  .filters select {
+    font: inherit; font-size: 13px; color: var(--ink); background: var(--surface);
+    border: 1px solid var(--ring); border-radius: 8px; padding: 6px 8px; max-width: 100%;
+  }
+  .range { display: inline-flex; gap: 4px; }
+
+  details { margin-top: 12px; }
+  summary { cursor: pointer; color: var(--ink-2); font-size: 13px; }
+  .table-wrap { overflow-x: auto; margin-top: 8px; }
+  table { border-collapse: collapse; font-size: 13px; width: 100%; }
+  th, td { text-align: right; padding: 4px 8px; border-bottom: 1px solid var(--grid); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  th:first-child, td:first-child { text-align: left; }
+  th { color: var(--ink-2); font-weight: 600; }
+
+  #tooltip {
+    position: fixed; pointer-events: none; z-index: 10; display: none; min-width: 140px; max-width: 260px;
+    background: var(--tooltip-bg); color: var(--ink); border: 1px solid var(--ring); border-radius: 8px;
+    padding: 8px 10px; font-size: 13px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  }
+  #tooltip .title { color: var(--ink-2); margin-bottom: 4px; }
+  #tooltip .row { display: flex; align-items: center; gap: 8px; }
+  #tooltip .row strong { font-variant-numeric: tabular-nums; }
+  #tooltip .row span:last-child { color: var(--ink-2); }
+
+  footer { margin-top: 32px; color: var(--ink-2); font-size: 13px; }
+  footer p + p { margin-top: 8px; }
+  footer a { color: var(--series-1); }
+  @media (max-width: 560px) {
+    h1 { font-size: 22px; }
+    section.card { padding: 16px 12px; }
+    .tile .value { font-size: 26px; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <h1>How South Africa's retail tenants are trading</h1>
+      <p class="lede" id="window"></p>
+    </div>
+    <button id="theme" type="button" aria-label="Switch between light and dark">Theme</button>
+  </header>
+
+  <div class="tiles" id="tiles"></div>
+
+  <section class="card" aria-labelledby="h-cpi">
+    <h2 id="h-cpi">Which retailer types beat inflation?</h2>
+    <p class="lede">Sales growth over the latest 12 months against the 12 before. The line is average CPI over the same months.</p>
+    <div class="chart" id="chart-cpi"></div>
+    <details><summary>Show the numbers</summary><div class="table-wrap" id="table-cpi"></div></details>
+  </section>
+
+  <section class="card" aria-labelledby="h-split">
+    <h2 id="h-split">Selling more, or charging more?</h2>
+    <p class="lede">Sales growth splits into volume (sales at constant prices) and implied price. Turnover rent follows sales, but volume shows whether shoppers are buying more.</p>
+    <div class="legend" id="legend-split"></div>
+    <div class="chart" id="chart-split"></div>
+    <details><summary>Show the numbers</summary><div class="table-wrap" id="table-split"></div></details>
+  </section>
+
+  <section class="card" aria-labelledby="h-season">
+    <h2 id="h-season">How much of the year rests on December?</h2>
+    <p class="lede">Each month's sales against an average month (1.00), at constant prices, averaged over complete years. Rows run from most to least seasonal.</p>
+    <div class="legend" id="legend-season"></div>
+    <div class="chart" id="chart-season"></div>
+    <details><summary>Show the numbers</summary><div class="table-wrap" id="table-season"></div></details>
+  </section>
+
+  <div class="filters" role="group" aria-label="Filters for the charts below">
+    <label>Retailer type <select id="category"></select></label>
+    <div class="range" id="range" role="group" aria-label="Time range"></div>
+  </div>
+
+  <section class="card" aria-labelledby="h-trend">
+    <h2 id="h-trend">Sales growth against CPI, month by month</h2>
+    <p class="lede">Year-on-year growth in sales for the retailer type chosen above, and headline CPI.</p>
+    <div class="legend" id="legend-trend"></div>
+    <div class="chart" id="chart-trend"></div>
+    <details><summary>Show the numbers</summary><div class="table-wrap" id="table-trend"></div></details>
+  </section>
+
+  <section class="card" aria-labelledby="h-rates">
+    <h2 id="h-rates">Interest rates</h2>
+    <p class="lede">The cost of property finance: the policy (repo) rate and prime at month end, and the average yield on government bonds of 10 years and longer.</p>
+    <div class="legend" id="legend-rates"></div>
+    <div class="chart" id="chart-rates"></div>
+    <details><summary>Show the numbers</summary><div class="table-wrap" id="table-rates"></div></details>
+  </section>
+
+  <footer>
+    <p><strong>Sources.</strong> Retail trade sales: Statistics South Africa, release P6242.1. CPI and interest rates: South African Reserve Bank.</p>
+    <p><strong>Read with care.</strong> These are national sales by retailer type, not tenant turnover, and growth includes store openings and closures. The latest months are preliminary, and Stats SA revises them. CPI covers services as well as goods, so beating it is a benchmark rather than a like-for-like price comparison.</p>
+    <p>Built by the <a href="https://github.com/Emmanuel-Esplin/sa-property-lakehouse">SA Property Lakehouse</a> pipeline. Every figure on this page comes from its tested dbt marts.</p>
+  </footer>
+</main>
+<div id="tooltip" role="status" aria-live="polite"></div>
+
+<script id="dashboard-data" type="application/json">__DASHBOARD_DATA__</script>
+<script>
+(() => {
+  "use strict";
+  const DATA = JSON.parse(document.getElementById("dashboard-data").textContent);
+  const SVG_NS = "http://www.w3.org/2000/svg";
+  const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const RANGES = [["2 years", 2], ["5 years", 5], ["10 years", 10], ["All", 0]];
+  const state = { category: "total", years: 5 };
+
+  // ---- Small helpers ---------------------------------------------------------------------
+
+  const $ = (id) => document.getElementById(id);
+  const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const pct = (v, dp = 1) => (v == null ? "n/a" : `${v.toFixed(dp)}%`);
+  const signed = (v, dp = 1) => (v == null ? "n/a" : `${v > 0 ? "+" : ""}${v.toFixed(dp)}%`);
+  const parseMonth = (iso) => new Date(`${iso}T00:00:00`);
+  const monthLabel = (iso) => { const d = parseMonth(iso); return `${MONTHS[d.getMonth()]} ${d.getFullYear()}`; };
+
+  function el(tag, attrs = {}, parent = null, text = null) {
+    const node = document.createElementNS(SVG_NS, tag);
+    for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
+    if (text != null) node.textContent = text;
+    if (parent) parent.appendChild(node);
+    return node;
+  }
+
+  function html(tag, attrs = {}, parent = null, text = null) {
+    const node = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
+    if (text != null) node.textContent = text;
+    if (parent) parent.appendChild(node);
+    return node;
+  }
+
+  function scale(d0, d1, r0, r1) {
+    const f = (v) => r0 + ((v - d0) / (d1 - d0 || 1)) * (r1 - r0);
+    return f;
+  }
+
+  // Round numbers for axis ticks: steps of 1, 2 or 5 times a power of ten.
+  function ticks(min, max, count) {
+    const raw = (max - min) / Math.max(count, 1);
+    const power = Math.pow(10, Math.floor(Math.log10(raw)));
+    const step = [1, 2, 5, 10].map((m) => m * power).find((s) => raw <= s);
+    const out = [];
+    for (let v = Math.ceil(min / step) * step; v <= max + 1e-9; v += step) out.push(+v.toFixed(10));
+    return out;
+  }
+
+  // A bar with its data end rounded and its baseline end square.
+  function barPath(x0, x1, y, h, r) {
+    const right = x1 >= x0;
+    const len = Math.abs(x1 - x0);
+    const rr = Math.min(r, len, h / 2);
+    if (len < 0.5) return "";
+    if (right) {
+      return `M${x0},${y}H${x1 - rr}Q${x1},${y} ${x1},${y + rr}V${y + h - rr}Q${x1},${y + h} ${x1 - rr},${y + h}H${x0}Z`;
+    }
+    return `M${x0},${y}H${x1 + rr}Q${x1},${y} ${x1},${y + rr}V${y + h - rr}Q${x1},${y + h} ${x1 + rr},${y + h}H${x0}Z`;
+  }
+
+  // ---- Tooltip: built with textContent only --------------------------------------------------
+
+  const tip = $("tooltip");
+  function showTip(event, title, lines) {
+    tip.replaceChildren();
+    html("div", { class: "title" }, tip, title);
+    for (const line of lines) {
+      const row = html("div", { class: "row" }, tip);
+      if (line.color) html("span", { class: "swatch", style: `background:${line.color}` }, row);
+      html("strong", {}, row, line.value);
+      html("span", {}, row, line.label);
+    }
+    tip.style.display = "block";
+    const pad = 14;
+    const { innerWidth: w, innerHeight: h } = window;
+    const rect = tip.getBoundingClientRect();
+    let x = event.clientX + pad;
+    let y = event.clientY + pad;
+    if (x + rect.width > w - 8) x = event.clientX - rect.width - pad;
+    if (y + rect.height > h - 8) y = event.clientY - rect.height - pad;
+    tip.style.left = `${Math.max(8, x)}px`;
+    tip.style.top = `${Math.max(8, y)}px`;
+  }
+  const hideTip = () => { tip.style.display = "none"; };
+
+  function legend(id, items) {
+    const box = $(id);
+    box.replaceChildren();
+    for (const item of items) {
+      const span = html("span", {}, box);
+      html("span", { class: `swatch${item.line ? " line" : ""}`, style: `background:${item.color}` }, span);
+      span.appendChild(document.createTextNode(item.label));
+    }
+  }
+
+  function table(id, headers, body) {
+    const box = $(id);
+    box.replaceChildren();
+    const t = html("table", {}, box);
+    const head = html("tr", {}, html("thead", {}, t));
+    headers.forEach((h) => html("th", { scope: "col" }, head, h));
+    const tbody = html("tbody", {}, t);
+    body.forEach((cells) => {
+      const tr = html("tr", {}, tbody);
+      cells.forEach((c) => html("td", {}, tr, c));
+    });
+  }
+
+  // ---- Horizontal bars: one or more series per row, labels above each row -----------------
+
+  function bars(id, rows, series, opts = {}) {
+    const box = $(id);
+    box.replaceChildren();
+    const width = box.clientWidth;
+    const barH = series.length > 1 ? 10 : 14;
+    const gap = 2;
+    const labelH = 20;
+    const groupH = series.length * barH + (series.length - 1) * gap;
+    const rowH = labelH + groupH + 14;
+    const axisH = 22;
+    const height = rows.length * rowH + axisH;
+    const values = rows.flatMap((r) => series.map((s) => r[s.key]));
+    if (opts.ref != null) values.push(opts.ref);
+    const lo = Math.min(0, ...values);
+    const hi = Math.max(0, ...values);
+    const labelRoom = 52;  // value labels sit beyond the bar ends
+    const x = scale(lo, hi, lo < 0 ? labelRoom : 0, width - labelRoom);
+    const svg = el("svg", { width, height, role: "img", "aria-label": opts.aria || "" }, box);
+
+    for (const t of ticks(lo, hi, width < 480 ? 4 : 6)) {
+      el("line", { x1: x(t), x2: x(t), y1: 0, y2: height - axisH, stroke: css("--grid"), "stroke-width": 1 }, svg);
+      el("text", { x: x(t), y: height - 6, "text-anchor": "middle", class: "tick" }, svg, `${t}%`);
+    }
+    el("line", { x1: x(0), x2: x(0), y1: 0, y2: height - axisH, stroke: css("--axis"), "stroke-width": 1 }, svg);
+
+    rows.forEach((r, i) => {
+      const top = i * rowH;
+      el("text", { x: 0, y: top + 14, fill: css("--ink"), style: "fill:var(--ink)" }, svg, r.short);
+      series.forEach((s, j) => {
+        const y = top + labelH + j * (barH + gap);
+        const v = r[s.key];
+        el("path", { d: barPath(x(0), x(v), y, barH, 4), fill: css(s.color) }, svg);
+        const outside = v >= 0 ? x(v) + 6 : x(v) - 6;
+        el("text", { x: outside, y: y + barH - 2, "text-anchor": v >= 0 ? "start" : "end" }, svg, signed(v));
+      });
+      // The whole row is the hover target, bigger than the bars.
+      const hit = el("rect", { x: 0, y: top, width, height: rowH, fill: "transparent" }, svg);
+      const lines = series.map((s) => ({ color: css(s.color), value: signed(r[s.key]), label: s.name }));
+      if (opts.ref != null) lines.push({ value: pct(opts.ref), label: opts.refName });
+      hit.addEventListener("pointermove", (e) => showTip(e, r.short, lines));
+      hit.addEventListener("pointerleave", hideTip);
+    });
+
+    if (opts.ref != null) {
+      const rx = x(opts.ref);
+      el("line", { x1: rx, x2: rx, y1: 0, y2: height - axisH, stroke: css("--ink-2"), "stroke-width": 1.5 }, svg);
+      el("text", { x: rx + 4, y: 10, style: "fill:var(--ink)", "font-weight": 600 }, svg, `${opts.refName} ${pct(opts.ref)}`);
+    }
+  }
+
+  // ---- Lines over time, with a crosshair that lists every series ----------------------------
+
+  function lines(id, series, opts = {}) {
+    const box = $(id);
+    box.replaceChildren();
+    const width = box.clientWidth;
+    const height = width < 480 ? 240 : 300;
+    const m = { top: 12, right: width < 480 ? 64 : 96, bottom: 26, left: 40 };
+    const all = series.flatMap((s) => s.points);
+    if (!all.length) return;
+    const xs = all.map((p) => p.t);
+    const ys = all.map((p) => p.y);
+    const t0 = Math.min(...xs);
+    const t1 = Math.max(...xs);
+    const lo = Math.min(opts.zero ? 0 : Infinity, ...ys);
+    const hi = Math.max(opts.zero ? 0 : -Infinity, ...ys);
+    const padY = (hi - lo) * 0.06 || 1;
+    const yTicks = ticks(lo - padY, hi + padY, 5);
+    const y0 = Math.min(lo - padY, yTicks[0]);
+    const y1 = Math.max(hi + padY, yTicks[yTicks.length - 1]);
+    const x = scale(t0, t1, m.left, width - m.right);
+    const y = scale(y0, y1, height - m.bottom, m.top);
+    const svg = el("svg", { width, height, role: "img", "aria-label": opts.aria || "" }, box);
+
+    for (const t of yTicks) {
+      el("line", { x1: m.left, x2: width - m.right, y1: y(t), y2: y(t), stroke: css("--grid"), "stroke-width": 1 }, svg);
+      el("text", { x: m.left - 6, y: y(t) + 4, "text-anchor": "end", class: "tick" }, svg, `${t}%`);
+    }
+    if (y0 < 0 && y1 > 0) {
+      el("line", { x1: m.left, x2: width - m.right, y1: y(0), y2: y(0), stroke: css("--axis"), "stroke-width": 1 }, svg);
+    }
+    const first = new Date(t0).getFullYear();
+    const last = new Date(t1).getFullYear();
+    const span = last - first;
+    const every = span > 16 ? 4 : span > 8 ? 2 : 1;
+    for (let yr = first + 1; yr <= last; yr += 1) {
+      if ((yr - first - 1) % every) continue;
+      const tx = x(new Date(yr, 0, 1).getTime());
+      if (tx < m.left + 10 || tx > width - m.right) continue;
+      el("text", { x: tx, y: height - 6, "text-anchor": "middle", class: "tick" }, svg, String(yr));
+    }
+
+    for (const s of series) {
+      const d = s.points.map((p, i) => `${i ? "L" : "M"}${x(p.t).toFixed(1)},${y(p.y).toFixed(1)}`).join("");
+      el("path", { d, fill: "none", stroke: css(s.color), "stroke-width": 2, "stroke-linejoin": "round" }, svg);
+    }
+
+    // End labels: the latest value of each series, nudged apart when they would overlap.
+    const ends = series
+      .map((s) => ({ s, p: s.points[s.points.length - 1] }))
+      .filter((e) => e.p)
+      .map((e) => ({ ...e, ly: y(e.p.y) }))
+      .sort((a, b) => a.ly - b.ly);
+    for (let i = 1; i < ends.length; i += 1) {
+      if (ends[i].ly - ends[i - 1].ly < 14) ends[i].ly = ends[i - 1].ly + 14;
+    }
+    for (const e of ends) {
+      el("circle", { cx: x(e.p.t), cy: y(e.p.y), r: 4, fill: css(e.s.color), stroke: css("--surface"), "stroke-width": 2 }, svg);
+      el("text", { x: x(e.p.t) + 8, y: e.ly + 4, style: "fill:var(--ink)" }, svg, `${e.s.short || e.s.name} ${pct(e.p.y, opts.dp ?? 1)}`);
+    }
+
+    // Crosshair: snaps to the nearest month and lists every series there.
+    const cross = el("line", { y1: m.top, y2: height - m.bottom, stroke: css("--ink-2"), "stroke-width": 1, visibility: "hidden" }, svg);
+    const dots = series.map((s) => el("circle", { r: 4, fill: css(s.color), stroke: css("--surface"), "stroke-width": 2, visibility: "hidden" }, svg));
+    const months = [...new Set(xs)].sort((a, b) => a - b);
+    const lookup = series.map((s) => new Map(s.points.map((p) => [p.t, p.y])));
+    const overlay = el("rect", { x: m.left, y: m.top, width: width - m.left - m.right, height: height - m.top - m.bottom, fill: "transparent" }, svg);
+    overlay.addEventListener("pointermove", (e) => {
+      const px = e.clientX - svg.getBoundingClientRect().left;
+      let best = months[0];
+      for (const t of months) if (Math.abs(x(t) - px) < Math.abs(x(best) - px)) best = t;
+      cross.setAttribute("x1", x(best));
+      cross.setAttribute("x2", x(best));
+      cross.setAttribute("visibility", "visible");
+      const rows = [];
+      series.forEach((s, i) => {
+        const v = lookup[i].get(best);
+        if (v == null) { dots[i].setAttribute("visibility", "hidden"); return; }
+        dots[i].setAttribute("cx", x(best));
+        dots[i].setAttribute("cy", y(v));
+        dots[i].setAttribute("visibility", "visible");
+        rows.push({ color: css(s.color), value: pct(v, 2), label: s.name });
+      });
+      const d = new Date(best);
+      showTip(e, `${MONTHS[d.getMonth()]} ${d.getFullYear()}`, rows);
+    });
+    overlay.addEventListener("pointerleave", () => {
+      cross.setAttribute("visibility", "hidden");
+      dots.forEach((dot) => dot.setAttribute("visibility", "hidden"));
+      hideTip();
+    });
+  }
+
+  // ---- Seasonality heatmap: diverging around an average month ------------------------------
+
+  function mix(a, b, f) {
+    const pa = a.match(/\w\w/g).map((h) => parseInt(h, 16));
+    const pb = b.match(/\w\w/g).map((h) => parseInt(h, 16));
+    return `#${pa.map((v, i) => Math.round(v + (pb[i] - v) * f).toString(16).padStart(2, "0")).join("")}`;
+  }
+
+  // Relative luminance, to choose dark or light text on a cell.
+  function luminance(hex) {
+    const [r, g, b] = hex.match(/\w\w/g).map((h) => {
+      const c = parseInt(h, 16) / 255;
+      return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+    });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  }
+
+  function heatmap(id, records) {
+    const box = $(id);
+    box.replaceChildren();
+    const width = box.clientWidth;
+    const narrow = width < 560;
+    const labelW = narrow ? 0 : 190;
+    const gap = 2;
+    const cell = Math.min(44, (width - labelW - gap * 11) / 12);
+    const cellH = narrow ? 22 : 26;
+    const labelH = narrow ? 18 : 0;
+    const rowH = labelH + cellH + gap + (narrow ? 6 : 0);
+    const cats = [...new Set(records.map((r) => r.category))];
+    const height = cats.length * rowH + 20;
+    // Each arm runs to its own extreme, so quiet months stay visible beside a 1.8 December.
+    // The legend states both ends, so the scales are never implied to match.
+    const values = records.map((r) => r.seasonal_index);
+    const lowest = Math.min(...values);
+    const highest = Math.max(...values);
+    const colour = (v) => {
+      const f = v >= 1 ? (v - 1) / (highest - 1 || 1) : (1 - v) / (1 - lowest || 1);
+      return mix(css("--div-mid"), css(v >= 1 ? "--div-high" : "--div-low"), Math.min(1, f));
+    };
+    const svg = el("svg", { width, height, role: "img", "aria-label": "Seasonal index by retailer type and month" }, box);
+    MONTHS.forEach((mo, j) => {
+      const cx = labelW + j * (cell + gap) + cell / 2;
+      el("text", { x: cx, y: 12, "text-anchor": "middle", class: "tick" }, svg, narrow ? mo[0] : mo);
+    });
+    cats.forEach((cat, i) => {
+      const rowsFor = records.filter((r) => r.category === cat);
+      const top = 20 + i * rowH;
+      const name = rowsFor[0].short;
+      el("text", narrow ? { x: 0, y: top + 13 } : { x: 0, y: top + cellH / 2 + 4 }, svg, name);
+      rowsFor.forEach((r) => {
+        const cx = labelW + (r.month_of_year - 1) * (cell + gap);
+        const rect = el("rect", { x: cx, y: top + labelH, width: cell, height: cellH, rx: 3, fill: colour(r.seasonal_index) }, svg);
+        const label = `${r.seasonal_index.toFixed(2)} times an average month`;
+        rect.addEventListener("pointermove", (e) => showTip(e, `${name}, ${MONTHS[r.month_of_year - 1]}`, [{ value: r.seasonal_index.toFixed(2), label: "of an average month" }]));
+        rect.addEventListener("pointerleave", hideTip);
+        rect.setAttribute("aria-label", label);
+      });
+      // Only the peak carries a printed value: it is the number this chart is about.
+      const peak = rowsFor.reduce((a, b) => (b.seasonal_index > a.seasonal_index ? b : a));
+      if (cell >= 30) {
+        const cx = labelW + (peak.month_of_year - 1) * (cell + gap) + cell / 2;
+        const ink = luminance(colour(peak.seasonal_index)) > 0.4 ? "#0b0b0b" : "#ffffff";
+        el("text", { x: cx, y: top + labelH + cellH / 2 + 4, "text-anchor": "middle", "font-weight": 600, style: `fill:${ink}` }, svg, peak.seasonal_index.toFixed(2));
+      }
+    });
+    legend("legend-season", [
+      { color: css("--div-low"), label: `Quieter than average, darkest at ${lowest.toFixed(2)}` },
+      { color: css("--div-mid"), label: "Average month, 1.00" },
+      { color: css("--div-high"), label: `Busier than average, darkest at ${highest.toFixed(2)}` },
+    ]);
+  }
+
+  // ---- Page ----------------------------------------------------------------------------------
+
+  const card = DATA.scorecard;
+  const total = card.find((r) => r.category === "total");
+  const categories = card.filter((r) => r.category !== "total");
+  const latest = parseMonth(DATA.latest_month);
+  const windowStart = new Date(latest.getFullYear() - 1, latest.getMonth() + 1, 1);
+  const latestRate = DATA.rates[DATA.rates.length - 1];
+
+  $("window").textContent =
+    `National retail sales from Stats SA, ${MONTHS[windowStart.getMonth()]} ${windowStart.getFullYear()} to ` +
+    `${monthLabel(DATA.latest_month)}, against the 12 months before, with interest rates from the SARB.`;
+
+  function tile(label, value, note) {
+    const t = html("div", { class: "tile" }, $("tiles"));
+    html("div", { class: "label" }, t, label);
+    html("div", { class: "value" }, t, value);
+    html("div", { class: "note" }, t, note);
+  }
+  tile("Retail sales growth", signed(total.nominal_growth_pct), "All retailers, latest 12 months");
+  tile("Volume growth", signed(total.real_growth_pct), "Sales at constant prices");
+  tile("Implied price", signed(total.price_growth_pct), "Sales growth not explained by volume");
+  tile("Average CPI", pct(total.avg_cpi_yoy_pct), "Headline inflation, same 12 months");
+  tile("Repo rate", pct(latestRate.repo_rate_pct, 2), `SARB policy rate, end of ${monthLabel(latestRate.month)}`);
+
+  const select = $("category");
+  for (const [key, label] of Object.entries(DATA.labels)) {
+    const option = html("option", { value: key }, select, label);
+    if (key === state.category) option.selected = true;
+  }
+  select.addEventListener("change", () => { state.category = select.value; renderTimeCharts(); });
+
+  for (const [label, years] of RANGES) {
+    const b = html("button", { type: "button", "aria-pressed": String(years === state.years) }, $("range"), label);
+    b.addEventListener("click", () => {
+      state.years = years;
+      [...$("range").children].forEach((c) => c.setAttribute("aria-pressed", String(c === b)));
+      renderTimeCharts();
+    });
+  }
+
+  function inRange(iso) {
+    if (!state.years) return true;
+    const end = parseMonth(DATA.rates[DATA.rates.length - 1].month);
+    return parseMonth(iso) > new Date(end.getFullYear() - state.years, end.getMonth(), 1);
+  }
+
+  function renderStatic() {
+    bars("chart-cpi", categories, [{ key: "nominal_growth_pct", name: "Sales growth", color: "--series-1" }], {
+      ref: total.avg_cpi_yoy_pct, refName: "CPI", aria: "Sales growth by retailer type against average CPI",
+    });
+    table("table-cpi", ["Retailer type", "Sales growth", "Beat CPI?", "Months above CPI, last 24"],
+      card.map((r) => [r.short, signed(r.nominal_growth_pct), r.above_cpi ? "Yes" : "No", String(r.months_above_cpi_last_24)]));
+
+    const split = [
+      { key: "real_growth_pct", name: "Volume", color: "--series-1" },
+      { key: "price_growth_pct", name: "Implied price", color: "--series-2" },
+    ];
+    legend("legend-split", split.map((s) => ({ color: css(s.color), label: s.name })));
+    bars("chart-split", categories, split, { aria: "Volume and implied price growth by retailer type" });
+    table("table-split", ["Retailer type", "Sales growth", "Volume", "Implied price", "Months of falling volume, last 24"],
+      card.map((r) => [r.short, signed(r.nominal_growth_pct), signed(r.real_growth_pct), signed(r.price_growth_pct), String(r.months_real_decline_last_24)]));
+
+    heatmap("chart-season", DATA.seasonality);
+    const cats = [...new Set(DATA.seasonality.map((r) => r.category))];
+    table("table-season", ["Retailer type", ...MONTHS], cats.map((c) => {
+      const rows = DATA.seasonality.filter((r) => r.category === c);
+      return [rows[0].short, ...rows.map((r) => r.seasonal_index.toFixed(2))];
+    }));
+  }
+
+  function renderTimeCharts() {
+    const growth = DATA.growth.filter((r) => r.category === state.category && inRange(r.month));
+    const name = DATA.labels[state.category];
+    const trend = [
+      { name: `${name}: sales growth`, short: "Sales", color: "--series-1", points: growth.map((r) => ({ t: parseMonth(r.month).getTime(), y: r.nominal_yoy_pct })) },
+      { name: "CPI", short: "CPI", color: "--series-2", points: growth.filter((r) => r.cpi_yoy_pct != null).map((r) => ({ t: parseMonth(r.month).getTime(), y: r.cpi_yoy_pct })) },
+    ];
+    legend("legend-trend", trend.map((s) => ({ color: css(s.color), label: s.name, line: true })));
+    lines("chart-trend", trend, { zero: true, aria: `Year-on-year sales growth for ${name} and CPI` });
+    table("table-trend", ["Month", "Sales growth", "Volume growth", "CPI"],
+      growth.slice().reverse().map((r) => [monthLabel(r.month), pct(r.nominal_yoy_pct), pct(r.real_yoy_pct), pct(r.cpi_yoy_pct)]));
+
+    const rates = DATA.rates.filter((r) => inRange(r.month));
+    const pts = (key) => rates.map((r) => ({ t: parseMonth(r.month).getTime(), y: r[key] }));
+    const rateSeries = [
+      { name: "Prime", short: "Prime", color: "--series-2", points: pts("prime_rate_pct") },
+      { name: "Government bonds, 10 years and longer", short: "Bonds", color: "--series-3", points: pts("bond_10y_plus_yield_pct") },
+      { name: "Repo rate", short: "Repo", color: "--series-1", points: pts("repo_rate_pct") },
+    ];
+    legend("legend-rates", rateSeries.map((s) => ({ color: css(s.color), label: s.name, line: true })));
+    lines("chart-rates", rateSeries, { dp: 2, aria: "Repo rate, prime and long government bond yield" });
+    table("table-rates", ["Month", "Repo", "Prime", "Bonds 10y+", "Real bond yield"],
+      rates.slice().reverse().map((r) => [monthLabel(r.month), pct(r.repo_rate_pct, 2), pct(r.prime_rate_pct, 2), pct(r.bond_10y_plus_yield_pct, 2), pct(r.real_bond_yield_pct, 2)]));
+  }
+
+  const renderAll = () => { renderStatic(); renderTimeCharts(); };
+
+  // Theme: follows the system until the viewer picks one.
+  const themeButton = $("theme");
+  themeButton.addEventListener("click", () => {
+    const dark = getComputedStyle(document.documentElement).colorScheme.includes("dark");
+    document.documentElement.dataset.theme = dark ? "light" : "dark";
+    renderAll();
+  });
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", renderAll);
+
+  let resizeTimer;
+  let lastWidth = window.innerWidth;
+  window.addEventListener("resize", () => {
+    if (window.innerWidth === lastWidth) return;
+    lastWidth = window.innerWidth;
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(renderAll, 150);
+  });
+
+  renderAll();
+})();
+</script>
+</body>
+</html>

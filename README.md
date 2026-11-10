@@ -4,14 +4,15 @@ A data platform that answers the questions a South African property owner asks a
 and its market. It covers **tenant trading**, built from national retail sales, and the
 **interest rates** that set the cost of property finance.
 
-> **Status: Phases 1 to 6 complete.** Tenant trading runs on real data through the August 2026
+> **Status: all seven phases complete.** Tenant trading runs on real data through the August 2026
 > release. One dbt project builds the marts locally on DuckDB and on AWS on Athena, from silver
 > tables that Spark writes as Iceberg. Both give identical results. The AWS account is temporary,
 > so the cloud environment may be torn down. SARB interest rates run on both as well.
 
 ## What the data shows
 
-Latest 12 months (September 2025 to August 2026) against the 12 before. CPI averaged 3.8%.
+Latest 12 months (September 2025 to August 2026) against the 12 before. CPI averaged 3.8%. The full
+write-up, including seasonality and interest rates, is in [docs/findings.md](docs/findings.md).
 
 | Retailer type | Segment | Sales growth | Volume | Implied price | Beat CPI? |
 | --- | --- | ---: | ---: | ---: | --- |
@@ -22,7 +23,7 @@ Latest 12 months (September 2025 to August 2026) against the 12 before. CPI aver
 | General dealers | Defensive | 4.0% | 1.7% | 2.3% | Yes, by 0.2 points |
 | Clothing and footwear | Discretionary | 3.4% | 2.9% | 0.5% | No, by 0.4 points |
 | Hardware, paint and glass | Discretionary | 2.3% | 0.7% | 1.6% | No |
-| **All retailers** | | **4.3%** | **2.7%** | **1.6%** | **Yes, by 0.5 points** |
+| **All retailers** | | **4.3%** | **2.6%** | **1.6%** | **Yes, by 0.5 points** |
 
 - **Volume and sales can tell opposite stories.** Furniture and appliances has the strongest volume
   growth, but falling implied prices cut its sales growth to 4.7%. Rent linked to turnover follows
@@ -102,7 +103,8 @@ Retail data takes one manual step, because Stats SA's site blocks scripted clien
    the latest one there: other formats are ignored, and two workbooks stop the run.
 3. Run `make retail`, then `make gold`, which builds and tests the dbt models.
 
-Marts are written to `data/gold/warehouse.duckdb`.
+Marts are written to `data/gold/warehouse.duckdb`. `make dashboard` turns them into one interactive
+page, `data/dashboard/index.html`, that opens from disk with no server or network.
 
 ## AWS
 
@@ -131,7 +133,7 @@ The cost design and guardrails are in [docs/aws-costs.md](docs/aws-costs.md).
 | 4 | dbt marts on DuckDB and Athena, with data tests | Done for tenant trading |
 | 5 | SARB interest rates and their mart | Done, verified on AWS. REIT prices were dropped: no free source allows this use |
 | 6 | Orchestration with Step Functions, triggered by schedule and upload | Done, verified on AWS |
-| 7 | Dashboard and written findings | Planned |
+| 7 | Dashboard and written findings | Done |
 
 ## Data sources
 
