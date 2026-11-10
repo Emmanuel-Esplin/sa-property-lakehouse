@@ -11,8 +11,11 @@ and its market. It covers **tenant trading**, built from national retail sales, 
 
 ## What the data shows
 
+**[Open the dashboard](https://emmanuel-esplin.github.io/sa-property-lakehouse/)** for these
+figures as interactive charts, with seasonality and interest rates.
+
 Latest 12 months (September 2025 to August 2026) against the 12 before. CPI averaged 3.8%. The full
-write-up, including seasonality and interest rates, is in [docs/findings.md](docs/findings.md).
+write-up is in [docs/findings.md](docs/findings.md).
 
 | Retailer type | Segment | Sales growth | Volume | Implied price | Beat CPI? |
 | --- | --- | ---: | ---: | ---: | --- |
@@ -104,7 +107,9 @@ Retail data takes one manual step, because Stats SA's site blocks scripted clien
 3. Run `make retail`, then `make gold`, which builds and tests the dbt models.
 
 Marts are written to `data/gold/warehouse.duckdb`. `make dashboard` turns them into one interactive
-page, `data/dashboard/index.html`, that opens from disk with no server or network.
+page, `data/dashboard/index.html`, that opens from disk with no server or network. `make publish`
+copies it to `site/`, and GitHub Pages publishes that folder when it changes on `main`. The page
+holds only the marts' summary figures, never the source files.
 
 ## AWS
 

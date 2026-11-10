@@ -10,7 +10,9 @@ import pytest
 from dashboard.build import PLACEHOLDER, SHORT_LABELS, build, collect, render
 from tests.test_marts import build_gold
 
-SEED = Path(__file__).parent.parent / "transform" / "seeds" / "retail_categories.csv"
+ROOT = Path(__file__).parent.parent
+SEED = ROOT / "transform" / "seeds" / "retail_categories.csv"
+PUBLISHED = ROOT / "site" / "index.html"
 
 
 @pytest.fixture
@@ -58,3 +60,9 @@ def test_data_cannot_close_its_script_tag(tmp_path, retail, cpi, rates):
     html = render(data)
     assert embedded(html)["labels"]["total"] == "</script><script>alert(1)</script>"
     assert html.count("</script>") == 2
+
+
+def test_published_page_uses_the_current_template():
+    """CI can't rebuild site/, so this catches a template change that wasn't republished."""
+    html = PUBLISHED.read_text()
+    assert render(embedded(html)) == html, "Run `make publish` and commit site/index.html"
