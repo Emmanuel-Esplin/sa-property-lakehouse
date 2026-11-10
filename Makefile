@@ -1,5 +1,5 @@
 # Usage: make install | make test | make lint | make all
-#        make cpi | make rates | make retail | make gold | make reconcile
+#        make cpi | make rates | make retail | make gold | make reconcile | make dashboard
 #        make tf-check | make tf-plan | make tf-apply | make tf-destroy
 #        make glue-run | make dbt-athena | make pipeline-run | make cloud-check
 PYTHON ?= .venv/bin/python
@@ -16,7 +16,7 @@ endif
 export TF_DATA_DIR := .terraform.nosync
 TF_DEV = terraform -chdir=infra/envs/dev
 
-.PHONY: install lint format test cpi rates retail gold reconcile all \
+.PHONY: install lint format test cpi rates retail gold reconcile dashboard all \
 	tf-check tf-plan tf-apply tf-destroy glue-run dbt-athena pipeline-run cloud-check
 
 install:
@@ -55,7 +55,11 @@ gold:
 reconcile:
 	$(PYTHON) scripts/reconcile_august_2026.py
 
-all: cpi rates retail gold
+# One self-contained HTML page built from the marts. Opens from disk, with no server.
+dashboard:
+	$(PYTHON) -m dashboard.build
+
+all: cpi rates retail gold dashboard
 
 # No AWS credentials needed: formatting, validation and module tests with a mocked provider.
 tf-check:
