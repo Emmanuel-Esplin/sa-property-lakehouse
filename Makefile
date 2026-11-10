@@ -1,5 +1,5 @@
 # Usage: make install | make test | make lint | make all
-#        make cpi | make rates | make retail | make gold | make reconcile | make dashboard
+#        make cpi | make rates | make retail | make gold | make reconcile | make dashboard | make publish
 #        make tf-check | make tf-plan | make tf-apply | make tf-destroy
 #        make glue-run | make dbt-athena | make pipeline-run | make cloud-check
 PYTHON ?= .venv/bin/python
@@ -16,7 +16,7 @@ endif
 export TF_DATA_DIR := .terraform.nosync
 TF_DEV = terraform -chdir=infra/envs/dev
 
-.PHONY: install lint format test cpi rates retail gold reconcile dashboard all \
+.PHONY: install lint format test cpi rates retail gold reconcile dashboard publish all \
 	tf-check tf-plan tf-apply tf-destroy glue-run dbt-athena pipeline-run cloud-check
 
 install:
@@ -58,6 +58,11 @@ reconcile:
 # One self-contained HTML page built from the marts. Opens from disk, with no server.
 dashboard:
 	$(PYTHON) -m dashboard.build
+
+# Copies the dashboard to site/, which GitHub Pages publishes once it is merged to main.
+publish: dashboard
+	mkdir -p site
+	cp data/dashboard/index.html site/index.html
 
 all: cpi rates retail gold dashboard
 
